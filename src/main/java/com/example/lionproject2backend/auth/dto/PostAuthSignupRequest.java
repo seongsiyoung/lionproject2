@@ -1,4 +1,4 @@
-package com.example.lionproject2backend.dto.user;
+package com.example.lionproject2backend.auth.dto;
 
 
 import com.example.lionproject2backend.user.domain.UserRole;

@@ -1,4 +1,4 @@
-package com.example.lionproject2backend.dto.user;
+package com.example.lionproject2backend.auth.dto;
 
 
 import jakarta.validation.constraints.Email;

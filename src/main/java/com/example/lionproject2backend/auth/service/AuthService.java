@@ -1,13 +1,23 @@
 package com.example.lionproject2backend.auth.service;
 
-import com.example.lionproject2backend.dto.user.PostAuthSignupResponse;
+import com.example.lionproject2backend.auth.cookie.CookieProperties;
+import com.example.lionproject2backend.auth.cookie.CookieUtil;
+import com.example.lionproject2backend.auth.domain.RefreshTokenStorage;
+import com.example.lionproject2backend.auth.dto.PostAuthLoginResponse;
+import com.example.lionproject2backend.auth.dto.PostAuthSignupResponse;
+import com.example.lionproject2backend.auth.repository.RefreshTokenStorageRepository;
 import com.example.lionproject2backend.global.exception.custom.CustomException;
 import com.example.lionproject2backend.global.exception.custom.ErrorCode;
+import com.example.lionproject2backend.global.security.jwt.JwtUtil;
 import com.example.lionproject2backend.user.domain.User;
 import com.example.lionproject2backend.user.domain.UserRole;
 import com.example.lionproject2backend.user.repository.UserRepository;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +28,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtil jwtUtil;
+    private final CookieProperties cookieProps;
+    private final RefreshTokenStorageRepository refreshRepo;
+
+    private static final long REFRESH_COOKIE_MAX_AGE_SECONDS = 60L * 60 * 24 * 7;
 
     @Transactional
     public PostAuthSignupResponse signup(String email, String rawPassword, String nickname, UserRole role) {
@@ -41,6 +57,41 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
+    public PostAuthLoginResponse login(String email, String password, HttpServletResponse response) {
+        Authentication auth = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(email, password)
+        );
 
+        Long userId = (Long) auth.getPrincipal();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        String accessToken = jwtUtil.createAccessToken(user);
+        String refreshToken = jwtUtil.createRefreshToken(user);
+
+        refreshRepo.findByUser(user)
+                .ifPresentOrElse(
+                        refreshTokenStorage -> refreshTokenStorage.update(refreshToken),
+                        () -> refreshRepo.save(RefreshTokenStorage.create(user, refreshToken))
+                );
+
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                CookieUtil.createRefreshCookie(cookieProps, refreshToken, REFRESH_COOKIE_MAX_AGE_SECONDS).toString()
+        );
+
+        return new PostAuthLoginResponse(accessToken);
+    }
+
+    @Transactional
+    public void logout(Long userId, HttpServletResponse response) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        refreshRepo.deleteByUser(user);
+
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                CookieUtil.deleteRefreshCookie(cookieProps).toString()
+        );
+    }
 }

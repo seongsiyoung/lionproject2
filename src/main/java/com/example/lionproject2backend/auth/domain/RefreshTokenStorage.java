@@ -31,4 +31,15 @@ public class RefreshTokenStorage extends BaseEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    public static RefreshTokenStorage create(User user, String token) {
+        RefreshTokenStorage refreshTokenStorage = new RefreshTokenStorage();
+        refreshTokenStorage.user = user;
+        refreshTokenStorage.refreshToken = token;
+        return refreshTokenStorage;
+    }
+
+    public void update(String token) {
+        this.refreshToken = token;
+    }
 }

@@ -31,4 +31,15 @@ public class TutorialSkill extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "skill_id")
     private Skill skill;
+
+
+    public static TutorialSkill create(
+            Tutorial tutorial,
+            Skill skill
+    ) {
+        TutorialSkill tutorialSkill = new TutorialSkill();
+        tutorialSkill.tutorial = tutorial;
+        tutorialSkill.skill = skill;
+        return tutorialSkill;
+    }
 }

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>포트원 결제 테스트</title>
+    <script src="https://cdn.portone.io/v2/browser-sdk.js"></script>
+</head>
+<body>
+    <div style="text-align: center; margin-top: 50px;">
+        <h1>과외 프로그램 구매 테스트</h1>
+        <p>결제 금액: 1,000원</p>
+        <button id="pay-button" style="padding: 15px 30px; font-size: 18px; cursor: pointer;">결제하기</button>
+    </div>
+
+    <script>
+    document.getElementById('pay-button').addEventListener('click', async function() {
+        // 1. 주문 번호 생성 (LION + 타임스탬프)
+        const orderPaymentId = "LION-" + new Date().getTime();
+        const orderAmount = 1000;
+
+        try {
+            // 2. 포트원 결제창 호출
+            const response = await PortOne.requestPayment({
+                storeId: "store-9f2484a4-da8a-46d7-a826-63e218708e5a", 
+                channelKey: "channel-key-2eb6d695-708b-4f2e-aeb2-2dfa70ed3866",
+                paymentId: orderPaymentId,
+                orderName: "과외 테스트 상품",
+                totalAmount: orderAmount,
+                currency: "CURRENCY_KRW",
+                payMethod: "CARD",
+                customer: {
+                    fullName: "김도은", // 실제 서비스에선 로그인된 유저명 연결
+                    phoneNumber: "010-9907-8600",
+                    email: "doeun457@gmail.com",
+                },
+                windowType: {
+                    pc: "IFRAME"
+                }
+            });
+
+            // 3. 결제창 단계에서 에러가 난 경우 처리
+            if (response.code != null) {
+                return alert("결제 실패: " + response.message);
+            }
+
+            // 4. [중요] 백엔드로 검증 및 DB 저장 요청 (자동 연동)
+            // 포스트맨 역할을 이 fetch 함수가 대신합니다.
+            const verifyRes = await fetch("/api/payments/verify", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json" 
+                },
+                body: JSON.stringify({
+                    paymentId: response.paymentId, // 백엔드 VerifyPaymentRequest 필드명과 일치
+                    amount: orderAmount            // 실제 결제 요청한 금액
+                })
+            });
+            
+            if (verifyRes.ok) {
+                const result = await verifyRes.text();
+                alert("결제 및 서버 검증이 완료되었습니다!\n" + result);
+                // 성공 시 마이페이지나 결제 완료 페이지로 이동
+                // window.location.href = "/orders/success"; 
+            } else {
+                const errorText = await verifyRes.text();
+                alert("❌ 서버 검증 실패: " + errorText);
+            }
+
+        } catch (error) {
+            console.error("결제 프로세스 에러:", error);
+            alert("결제 중 오류가 발생했습니다.");
+        }
+    });
+    </script>
+</body>
+</html>

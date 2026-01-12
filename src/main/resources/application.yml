@@ -6,15 +6,27 @@ spring:
     virtual:
       enabled: true 
 
+  datasource:
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+
+  h2:
+    console:
+      enabled: true
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
 
 portone:
-  # 1. 포트원 가맹점 식별코드 (imp로 시작하는 고유 번호)
-  imp-code: "imp71320015" 
+  # V2에서는 상점 ID(Store ID)를 사용합니다.
+  store-id: "store-9f2484a4-da8a-46d7-a826-63e218708e5a"
   
-  # 2. 포트원 REST API 키 (포트원 콘솔에서 복사)
-  api-key: "3265177685842072"
-  
-  api-secret: "yGE2ckoLpUqvtd4m4DiJvCinCTjmbPVQL5H6xsEBkvVUKVMOB1lj9WMBw0VjXvkNFYo8o7ggjKAFcuHS"
+  # V2 API 인증은 Secret Key 하나로 충분합니다.
+  api-secret: "YWW6IbcWlw7MMqIMBUeGWpMKFhCfF8SVHwPRZaiWrPnV7oMPBrQDfj1FeUKQtTcy9ynqUYPib4KmiPdU"
 
 payment:
   inicis:
@@ -25,8 +37,4 @@ payment:
     
     # 이니시스 전용 API 인증 정보 (제공해주신 IV 값 포함)
     ini-api-key: "test" # 테스트시 보통 test 입력
-    ini-api-iv: "HYb3yQ4f65QL89==" 
-
-
-
-#*db넣어야함
+    ini-api-iv: "HYb3yQ4f65QL89=="

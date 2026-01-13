@@ -6,12 +6,13 @@ import lombok.Getter;
 import java.util.List;
 
 /**
- * 멘토 목록 조회
+ * 멘토 상세 조회
  */
 
 @Getter
 @AllArgsConstructor
-public class MentorsGetResponse {
+public class GetMentorDetailResponse {
+
     private Long mentorId;
     private String nickname;
     private String career;

@@ -11,7 +11,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -26,17 +25,30 @@ public class Question extends BaseEntity{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 하나의 수업에 여러개의 질문 가능
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lesson_id")
     private Lesson lesson;
 
-    @Column(length = 200)
+    @Column(length = 200, nullable = false)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
     @Column(name = "code_content", columnDefinition = "TEXT")
     private String codeContent;
+
+    /**
+     * 질문 생성
+     */
+    public static Question create(Lesson lesson, String title, String content, String codeContent) {
+        Question question = new Question();
+        question.lesson = lesson;
+        question.title = title;
+        question.content = content;
+        question.codeContent = codeContent;
+        return question;
+    }
 
 }

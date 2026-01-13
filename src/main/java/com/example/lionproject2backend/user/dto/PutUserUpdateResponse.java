@@ -4,10 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 사용자 정보 수정 응답 DTO
+ */
+
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserUpdateResponse {
+public class PutUserUpdateResponse {
 
     private Long id;
     private String nickname;

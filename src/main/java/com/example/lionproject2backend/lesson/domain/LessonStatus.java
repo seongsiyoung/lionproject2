@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum LessonStatus {
 
-    PENDING("대기중"),
-    APPROVED("승인됨"),
+    REQUESTED("요청됨"),
+    CONFIRMED("확정됨"),
     REJECTED("거절됨"),
     IN_PROGRESS("진행중"),
     COMPLETED("완료됨"),

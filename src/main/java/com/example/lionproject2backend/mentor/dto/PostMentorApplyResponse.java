@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class MentorPostResponse {
+public class PostMentorApplyResponse {
 
     private Long mentorId;
     private String status;

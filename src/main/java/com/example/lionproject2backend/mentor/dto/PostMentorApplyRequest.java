@@ -9,7 +9,7 @@ import java.util.List;
 
 @Getter
 @NoArgsConstructor
-public class MentorPostRequest {
+public class PostMentorApplyRequest {
 
     @NotEmpty(message = "스킬은 최소 1개 이상 등록해야 합니다.")
     private List<String> skills;

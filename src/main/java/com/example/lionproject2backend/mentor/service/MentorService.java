@@ -3,10 +3,10 @@ package com.example.lionproject2backend.mentor.service;
 import com.example.lionproject2backend.mentor.domain.Mentor;
 import com.example.lionproject2backend.mentor.domain.MentorSkill;
 import com.example.lionproject2backend.mentor.domain.MentorStatus;
-import com.example.lionproject2backend.mentor.dto.MentorGetResponse;
-import com.example.lionproject2backend.mentor.dto.MentorPostRequest;
-import com.example.lionproject2backend.mentor.dto.MentorPostResponse;
-import com.example.lionproject2backend.mentor.dto.MentorsGetResponse;
+import com.example.lionproject2backend.mentor.dto.GetMentorDetailResponse;
+import com.example.lionproject2backend.mentor.dto.PostMentorApplyRequest;
+import com.example.lionproject2backend.mentor.dto.PostMentorApplyResponse;
+import com.example.lionproject2backend.mentor.dto.GetMentorListResponse;
 import com.example.lionproject2backend.mentor.repository.MentorRepository;
 import com.example.lionproject2backend.mentor.repository.MentorSkillRepository;
 import com.example.lionproject2backend.skill.domain.Skill;
@@ -35,7 +35,7 @@ public class MentorService {
      * 스킬 정보도 함께 저장
      */
     @Transactional
-    public MentorPostResponse postMentor(Long userId, MentorPostRequest request) {
+    public PostMentorApplyResponse postMentor(Long userId, PostMentorApplyRequest request) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
@@ -57,7 +57,7 @@ public class MentorService {
             mentorSkillRepository.save(mentorSkill);
         }
 
-        return new MentorPostResponse(savedMentor.getId(), "APPROVED");
+        return new PostMentorApplyResponse(savedMentor.getId(), "APPROVED");
 
     }
 
@@ -65,7 +65,7 @@ public class MentorService {
      * 멘토 목록 조회
      */
 
-    public List<MentorsGetResponse> getMentors() {
+    public List<GetMentorListResponse> getMentors() {
         List<Mentor> mentors = mentorRepository.findByMentorStatus(MentorStatus.APPROVED);
 
         return mentors.stream()
@@ -76,7 +76,7 @@ public class MentorService {
                             .map(ms -> ms.getSkill().getSkillName())
                             .collect(Collectors.toList());
 
-                    return new MentorsGetResponse(
+                    return new GetMentorListResponse(
                             mentor.getId(),
                             mentor.getUser().getNickname(),
                             mentor.getCareer(),
@@ -91,7 +91,7 @@ public class MentorService {
      * 멘토 상세 조회
      */
 
-    public MentorGetResponse getMentor(Long mentorId) {
+    public GetMentorDetailResponse getMentor(Long mentorId) {
 
         Mentor mentor = mentorRepository.findById(mentorId)
                 .orElseThrow(() -> new IllegalArgumentException("멘토를 찾을 수 없습니다."));
@@ -101,7 +101,7 @@ public class MentorService {
                 .map(ms -> ms.getSkill().getSkillName())
                 .collect(Collectors.toList());
 
-        return new MentorGetResponse(
+        return new GetMentorDetailResponse(
                 mentor.getId(),
                 mentor.getUser().getNickname(),
                 mentor.getCareer(),

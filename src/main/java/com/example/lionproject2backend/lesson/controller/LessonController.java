@@ -22,23 +22,23 @@ public class LessonController {
     private final LessonService lessonService;
 
     /**
-     * 수업 신청 - 인증 필요
-     * Post /api/tutorials/{tutorialId}/lessons
+     * 수업 신청 (이용권 기반) - 인증 필요
+     * Post /api/tickets/{ticketId}/lessons
      */
-    @PostMapping("/tutorials/{tutorialId}/lessons")
+    @PostMapping("/tickets/{ticketId}/lessons")
     public ResponseEntity<ApiResponse<PostLessonRegisterResponse>> registerLesson(
-            @PathVariable Long tutorialId,
+            @PathVariable Long ticketId,
             @Valid @RequestBody PostLessonRegisterRequest request,
             @AuthenticationPrincipal Long userId
     ) {
-        PostLessonRegisterResponse response = lessonService.register(tutorialId, userId, request);
+        PostLessonRegisterResponse response = lessonService.register(ticketId, userId, request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**
      * 내가 신청한 수업 목록 조회 (멘티) - 인증 필요
-     * Get /api/lessons/my(?status=PENDING)
-     * status - PENDING, COMPLETE, IN_PROCESS
+     * Get /api/lessons/my(?status=REQUESTED)
+     * status - REQUESTED, CONFIRMED, REJECTED, IN_PROGRESS, COMPLETED, CANCELLED
      */
     @GetMapping("/lessons/my")
     public ResponseEntity<ApiResponse<GetLessonListResponse>> getMyLessons(
@@ -51,7 +51,7 @@ public class LessonController {
 
     /**
      * 수업 신청 목록 조회 (멘토) - 인증 필요
-     * Get /api/lessons/requests(?status=PENDING)
+     * Get /api/lessons/requests(?status=REQUESTED)
      */
     @GetMapping("/lessons/requests")
     public ResponseEntity<ApiResponse<GetLessonRequestListResponse>> getLessonRequests(
@@ -76,16 +76,16 @@ public class LessonController {
     }
 
     /**
-     * 수업 승인 (멘토)
-     * PUT /api/lessons/{lessonId}/approve
+     * 수업 확정 (멘토)
+     * PUT /api/lessons/{lessonId}/confirm
      */
-    @PutMapping("/lessons/{lessonId}/approve")
-    public ResponseEntity<ApiResponse<PutLessonStatusUpdateResponse>>  approveLesson(
+    @PutMapping("/lessons/{lessonId}/confirm")
+    public ResponseEntity<ApiResponse<PutLessonStatusUpdateResponse>> confirmLesson(
             @PathVariable Long lessonId,
             @AuthenticationPrincipal Long userId
     ) {
-        PutLessonStatusUpdateResponse response = lessonService.approve(lessonId, userId);
-        return ResponseEntity.ok(ApiResponse.success("수업이 승인되었습니다.",response));
+        PutLessonStatusUpdateResponse response = lessonService.confirm(lessonId, userId);
+        return ResponseEntity.ok(ApiResponse.success("수업이 확정되었습니다.", response));
     }
 
     /**
@@ -99,7 +99,7 @@ public class LessonController {
             @Valid @RequestBody PutLessonRejectRequest request
     ) {
         PutLessonStatusUpdateResponse response = lessonService.reject(lessonId, userId, request);
-        return ResponseEntity.ok(ApiResponse.success("수업이 거절되었습니다.",response));
+        return ResponseEntity.ok(ApiResponse.success("수업이 거절되었습니다.", response));
     }
 
     /**

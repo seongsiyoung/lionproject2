@@ -10,7 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -29,6 +28,16 @@ public class Answer extends BaseEntity{
     @JoinColumn(name = "question_id")
     private Question question;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
+
+    /**
+     * 답변 생성
+     */
+    public static Answer create(Question question, String content) {
+        Answer answer = new Answer();
+        answer.question = question;
+        answer.content = content;
+        return answer;
+    }
 }

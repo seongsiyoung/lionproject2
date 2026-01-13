@@ -20,6 +20,10 @@ public class UserController {
 
     private final UserService userService;
 
+    /**
+     * 내 정보 조회
+     * GET /api/user/me
+     */
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<GetUserDetailResponse>> getUser(
             @AuthenticationPrincipal Long userId) {
@@ -27,8 +31,13 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /**
+     * 내 정보 수정
+     * PUT /api/user/me
+     */
+
     @PutMapping("/me")
-public ResponseEntity<ApiResponse<PutUserUpdateResponse>> updateUser(
+    public ResponseEntity<ApiResponse<PutUserUpdateResponse>> updateUser(
             @AuthenticationPrincipal Long userId, @RequestBody PutUserUpdateRequest putUserUpdateRequest) {
     PutUserUpdateResponse response = userService.updateUser(userId, putUserUpdateRequest);
     return ResponseEntity.ok(ApiResponse.success(response));

@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 사용자 정보 조회 응답 DTO
+ */
 
 @Getter
 @NoArgsConstructor

@@ -12,6 +12,11 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+/**
+ * 모든 사용자는 MENTEE로 시작
+ */
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -37,6 +42,10 @@ public class User extends BaseEntity{
     @Column(columnDefinition = "TEXT")
     private String introduction;
 
+    /**
+     * 사용자 생성
+     */
+
     public static User create(String email, String encodedPassword, String nickname, UserRole role) {
         User user = new User();
         user.email = email;
@@ -46,6 +55,13 @@ public class User extends BaseEntity{
         user.introduction = null;
         return user;
     }
+
+    // 비즈니스 로직 메서드
+
+    /**
+     * 프로필 업데이트
+     * null 이면 변경 X
+     */
 
     public void updateProfile(String nickname, String introduction) {
         if (nickname != null) {

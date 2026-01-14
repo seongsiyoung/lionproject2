@@ -17,26 +17,25 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MentorSearchCondition {
+
+    // 기술 스택목록
     private List<String> skills;
 
-    //멘토 닉네임
+    // 멘토 닉네임
     private String nickname;
 
-    //최소 가격
+    // 최소 가격
     private Integer minPrice;
 
-    //최대 가격
+    // 최대 가격
     private Integer maxPrice;
-
-    //최소 평점
-    private Double minRating;
 
     /**
      * 정렬 기준
-     * - rating: 평점 높은순
-     * - reviewCount: 리뷰 많은순
+     * - reviewCount: 리뷰 많은 순
      * - priceAsc: 낮은 가격순
-     * - priceDesc: 가격 높은순
+     * - priceDesc: 높은 가격순
+     * - 기본: 최신 등록순
      */
     private String sortBy;
 }

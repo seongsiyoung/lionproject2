@@ -1,6 +1,7 @@
 package com.example.lionproject2backend.payment.service;
 
 import com.example.lionproject2backend.payment.domain.Payment;
+import com.example.lionproject2backend.payment.domain.PaymentStatus; 
 import com.example.lionproject2backend.payment.dto.PaymentCreateRequest;
 import com.example.lionproject2backend.payment.dto.PaymentCreateResponse;
 import com.example.lionproject2backend.payment.dto.PaymentVerifyRequest;
@@ -17,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.security.access.AccessDeniedException; 
 import java.util.Map;
 
 @Service
@@ -32,54 +33,6 @@ public class PaymentService {
     private final TutorialRepository tutorialRepository;
     private final UserRepository userRepository;
 
-
-    /**
-       * ========== 변경 전 코드 (기존 Service) ==========
-            *
-            * @Transactional
-     * public void verifyCompletedPayment(String paymentId, int expectedAmount) {
-     *     Map<String, Object> response = portOneClient.getPaymentDetails(paymentId);
-     *     log.info("PortOne Response Raw Data: {}", response);
-     *
-     *     Map<String, Object> paymentData;
-     *     if (response.containsKey("payment")) {
-     *         paymentData = (Map<String, Object>) response.get("payment");
-     *     } else {
-     *         paymentData = response;
-     *     }
-     *
-     *     String status = getString(paymentData, "status");
-     *     Map<String, Object> amountData = getMap(paymentData, "amount");
-     *     int actualAmount = getNumber(amountData, "total");
-     *
-     *     log.info("검증 시도 - 상태: {}, 금액: {}", status, actualAmount);
-     *
-     *     if (!"PAID".equals(status)) {
-     *         throw new IllegalStateException("결제가 완료되지 않았습니다. 현재 상태: " + status);
-     *     }
-     *
-     *     if (actualAmount != expectedAmount) {
-     *         throw new IllegalArgumentException("금액 불일치! 기대금액: " + expectedAmount + ", 실제: " + actualAmount);
-     *     }
-     *
-     *     Payment payment = Payment.builder()
-                *         .impUid(paymentId)
-                *         .merchantUid(getString(paymentData, "id"))
-                *         .amount(actualAmount)
-                *         .status(PaymentStatus.PAID)
-                *         .build();
-     *
-     *     paymentRepository.save(payment);
-     *     log.info("✅ 결제 검증 및 DB 저장 성공! - ID: {}", paymentId);
-     * }
-     *
-     * * ========== 변경 전 코드 끝 ==========
-     */
-
-    /**
-     * 결제 생성 (PENDING 상태)
-     * POST /api/tutorials/{tutorialId}/payments
-     */
     @Transactional
     public PaymentCreateResponse createPayment(Long tutorialId, Long userId, PaymentCreateRequest request) {
         Tutorial tutorial = tutorialRepository.findById(tutorialId)
@@ -101,11 +54,23 @@ public class PaymentService {
      * POST /api/payments/{paymentId}/verify
      */
     @Transactional
-    public PaymentVerifyResponse verifyAndCompletePayment(Long paymentId, PaymentVerifyRequest request) {
+    public PaymentVerifyResponse verifyAndCompletePayment(Long paymentId, PaymentVerifyRequest request,Long userId) {
         // 1. Payment 조회
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결제입니다."));
 
+        //본인 확인하는 로직 추가
+        if (!payment.getMentee().getId().equals(userId)) {
+            log.error("보안 경고: 타인의 결제 검증 시도 - 유저ID: {}, 결제ID: {}", userId, paymentId);
+            throw new AccessDeniedException("본인의 결제 건만 검증할 수 있습니다.");
+        }
+        //이미 완료된 건은 포트원에서 호출하지x 종료
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            log.info("이미 완료된 결제 건입니다. 기존 이용권 정보를 반환합니다. - paymentId: {}", paymentId);
+            Ticket ticket = ticketRepository.findByPayment(payment)
+                    .orElseThrow(() -> new IllegalStateException("결제는 완료되었으나 이용권이 존재하지 않습니다."));
+            return PaymentVerifyResponse.from(payment, ticket);
+        }
         // 2. PortOne 결제 검증
         Map<String, Object> response = portOneClient.getPaymentDetails(request.getImpUid());
         log.info("PortOne Response Raw Data: {}", response);

@@ -1,5 +1,6 @@
 package com.example.lionproject2backend.ticket.repository;
 
+import com.example.lionproject2backend.payment.domain.Payment;
 import com.example.lionproject2backend.ticket.domain.Ticket;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -7,10 +8,11 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
-
+    Optional<Ticket> findByPayment(Payment payment);
     // 멘티의 특정 과외 이용권 조회 (유효한 것만)
     @Query("SELECT t FROM Ticket t " +
            "WHERE t.mentee.id = :menteeId " +

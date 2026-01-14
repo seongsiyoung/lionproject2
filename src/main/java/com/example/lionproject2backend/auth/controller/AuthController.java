@@ -3,6 +3,7 @@ package com.example.lionproject2backend.auth.controller;
 
 import com.example.lionproject2backend.auth.dto.PostAuthLoginRequest;
 import com.example.lionproject2backend.auth.dto.PostAuthLoginResponse;
+import com.example.lionproject2backend.auth.dto.PostDuplicateCheckResponse;
 import com.example.lionproject2backend.auth.dto.TokenDto;
 import com.example.lionproject2backend.auth.service.AuthService;
 import com.example.lionproject2backend.auth.dto.PostAuthSignupRequest;
@@ -11,12 +12,17 @@ import com.example.lionproject2backend.auth.util.AuthCookieManager;
 import com.example.lionproject2backend.global.response.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -59,5 +65,29 @@ public class AuthController {
 
         authCookieManager.addRefreshToken(response, tokenDto.getRefreshToken());
         return ApiResponse.success(new PostAuthLoginResponse(tokenDto.getAccessToken()));
+    }
+
+    /**
+     * 이메일 중복 체크
+     * GET /api/users/check-email?email=email@emaiol.com
+     */
+    @GetMapping("/check-email")
+    public ResponseEntity<ApiResponse<PostDuplicateCheckResponse>> checkEmail(
+            @RequestParam @Email String email
+    ) {
+        PostDuplicateCheckResponse isDuplicated = authService.checkEmail(email);
+        return ResponseEntity.ok(ApiResponse.success(isDuplicated));
+    }
+
+    /**
+     * 닉네임 중복 체크
+     * GET /api/users/check-nickname?nickname=닉네임
+     */
+    @GetMapping("/check-nickname")
+    public ResponseEntity<ApiResponse<PostDuplicateCheckResponse>> checkNickname(
+            @RequestParam @NotBlank String nickname
+    ) {
+        PostDuplicateCheckResponse isDuplicated = authService.checkNickname(nickname);
+        return ResponseEntity.ok(ApiResponse.success(isDuplicated));
     }
 }

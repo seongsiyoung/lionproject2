@@ -22,6 +22,7 @@ public class Lesson extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
+
     @JoinColumn(name = "ticket_id", nullable = false)
     private Ticket ticket;
 

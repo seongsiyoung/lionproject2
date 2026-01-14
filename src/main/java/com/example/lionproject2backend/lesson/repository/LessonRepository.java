@@ -74,4 +74,19 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
             "JOIN FETCH tk.mentee " +
             "WHERE l.id = :lessonId")
     Optional<Lesson> findByIdWithDetails(@Param("lessonId") Long lessonId);
+
+    /**
+     * 완료된 레슨을 조회
+     */
+    @Query("select count(l) "
+            + "from Lesson l "
+            + "join l.ticket t "
+            + "where t.mentee.id = :menteeId "
+            + "and t.tutorial.id = :tutorialId "
+            + "and l.status = :status")
+    long countCompletedByMenteeAndTutorial(
+            @Param("menteeId") Long menteeId,
+            @Param("tutorialId") Long tutorialId,
+            @Param("status") LessonStatus status
+    );
 }

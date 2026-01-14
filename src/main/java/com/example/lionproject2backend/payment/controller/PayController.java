@@ -21,36 +21,6 @@ public class PayController {
 
     private final PaymentService paymentService;
 
-    /**
-     * ========== 변경 전 코드 (기존 Controller) ==========
-     *
-     * @PostMapping("/payments/verify")
-     * public ResponseEntity<?> verifyPayment(@RequestBody VerifyPaymentRequest request) {
-     *     try {
-     *         String paymentId = request.paymentId();
-     *         int amount = request.amount();
-     *
-     *         log.info("Payment verify request - paymentId: {}, amount: {}", paymentId, amount);
-     *
-     *         paymentService.verifyCompletedPayment(paymentId, amount);
-     *
-     *         return ResponseEntity.ok("Payment verification completed");
-     *     } catch (Exception e) {
-     *         log.error("Payment verification failed: {}", e.getMessage());
-     *         return ResponseEntity.internalServerError().body(e.getMessage());
-     *     }
-     * }
-     *
-     * public record VerifyPaymentRequest(String paymentId, int amount) {}
-     *
-
-     * ========== 변경 전 코드 끝 ==========
-     */
-
-    /**
-     * 결제 생성 (PENDING 상태)
-     * POST /api/tutorials/{tutorialId}/payments
-     */
     @PostMapping("/tutorials/{tutorialId}/payments")
     public ResponseEntity<ApiResponse<PaymentCreateResponse>> createPayment(
             @PathVariable Long tutorialId,
@@ -69,10 +39,12 @@ public class PayController {
     @PostMapping("/payments/{paymentId}/verify")
     public ResponseEntity<ApiResponse<PaymentVerifyResponse>> verifyPayment(
             @PathVariable Long paymentId,
-            @Valid @RequestBody PaymentVerifyRequest request
+            @Valid @RequestBody PaymentVerifyRequest request,
+            @AuthenticationPrincipal Long userId 
+            //보완(인증 정보 추가)을 위한 userId
     ) {
         log.info("결제 검증 요청 - paymentId: {}, impUid: {}", paymentId, request.getImpUid());
-        PaymentVerifyResponse response = paymentService.verifyAndCompletePayment(paymentId, request);
+        PaymentVerifyResponse response = paymentService.verifyAndCompletePayment(paymentId, request, userId);
         return ResponseEntity.ok(ApiResponse.success("결제가 완료되었습니다.", response));
     }
 }

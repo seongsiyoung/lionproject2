@@ -75,7 +75,9 @@ public class SecurityConfig {
                                 "/api/tutorials/*",
                                 "/api/tutorials/search",
                                 "/api/mentors/*/reviews",
-                                "/api/tutorials/*/reviews"
+                                "/api/tutorials/*/reviews",
+                                "/api/auth/check-email",
+                                "/api/auth/check-nickname"
                         ).permitAll()
                         .requestMatchers(
                                 "/api/user/**",

@@ -5,6 +5,7 @@ import com.example.lionproject2backend.auth.cookie.CookieUtil;
 import com.example.lionproject2backend.auth.domain.RefreshTokenStorage;
 import com.example.lionproject2backend.auth.dto.PostAuthLoginResponse;
 import com.example.lionproject2backend.auth.dto.PostAuthSignupResponse;
+import com.example.lionproject2backend.auth.dto.PostDuplicateCheckResponse;
 import com.example.lionproject2backend.auth.dto.TokenDto;
 import com.example.lionproject2backend.auth.repository.RefreshTokenStorageRepository;
 import com.example.lionproject2backend.global.exception.custom.CustomException;
@@ -99,5 +100,21 @@ public class AuthService {
         refreshTokenStorage.update(newRefresh);
 
         return new TokenDto(newAccess, newRefresh);
+    }
+
+    /**
+     * 이메일 중복 체크
+     */
+    public PostDuplicateCheckResponse checkEmail(String email) {
+        boolean exists = userRepository.existsByEmail(email);
+        return new PostDuplicateCheckResponse(exists);
+    }
+
+    /**
+     * 닉네임 중복 체크
+     */
+    public PostDuplicateCheckResponse checkNickname(String nickname) {
+        boolean exists = userRepository.existsByNickname(nickname);
+        return new PostDuplicateCheckResponse(exists);
     }
 }

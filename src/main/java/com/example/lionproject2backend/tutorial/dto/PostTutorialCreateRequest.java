@@ -12,5 +12,5 @@ public class PostTutorialCreateRequest {
     private String description;
     private int price;
     private int duration;
-    private List<Long> skillIds;
+    private List<String> skills;  // 스킬 이름 목록 (없으면 자동 생성)
 }

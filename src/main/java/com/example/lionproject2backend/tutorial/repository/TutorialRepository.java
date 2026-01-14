@@ -11,4 +11,5 @@ public interface TutorialRepository extends JpaRepository<Tutorial, Long> {
     Optional<Tutorial> findWithMentorById(Long tutorialId);
     List<Tutorial> findByTitleContainingOrDescriptionContaining(String keyword, String keyword1);
     Optional<Tutorial> findByIdAndMentorId(Long tutorialId, Long mentorId);
+    List<Tutorial> findByMentorId(Long mentorId);
 }

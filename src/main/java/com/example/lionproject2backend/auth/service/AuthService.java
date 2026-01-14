@@ -45,7 +45,10 @@ public class AuthService {
         }
 
         String encoded = passwordEncoder.encode(rawPassword);
-        User user = User.create(email, encoded, nickname, role);
+
+        //ui에 롤 선택이 없어져서 코드 추가 했습니다. 추후 수정
+        UserRole actualRole = (role != null) ? role : UserRole.MENTEE;
+        User user = User.create(email, encoded, nickname, actualRole);
 
         User savedUser = userRepository.save(user);
 

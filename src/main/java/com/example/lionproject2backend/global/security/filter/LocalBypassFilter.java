@@ -32,11 +32,20 @@ public class LocalBypassFilter extends OncePerRequestFilter {
             return;
         }
 
+        // 인증 엔드포인트는 스킵
         if (request.getRequestURI().startsWith("/api/auth")) {
             filterChain.doFilter(request, response);
             return;
         }
 
+        // Authorization 헤더가 있으면 JWT 필터에서 처리하도록 스킵
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // Authorization 헤더가 없는 경우에만 테스트용 인증 설정
         Authentication auth =
                 new UsernamePasswordAuthenticationToken(
                         1L,

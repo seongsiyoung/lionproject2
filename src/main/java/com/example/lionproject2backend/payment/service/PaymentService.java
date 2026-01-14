@@ -13,6 +13,8 @@ import com.example.lionproject2backend.tutorial.domain.Tutorial;
 import com.example.lionproject2backend.tutorial.repository.TutorialRepository;
 import com.example.lionproject2backend.user.domain.User;
 import com.example.lionproject2backend.user.repository.UserRepository;
+import com.example.lionproject2backend.global.exception.custom.CustomException;
+import com.example.lionproject2backend.global.exception.custom.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -83,10 +85,10 @@ public class PaymentService {
     @Transactional
     public PaymentCreateResponse createPayment(Long tutorialId, Long userId, PaymentCreateRequest request) {
         Tutorial tutorial = tutorialRepository.findById(tutorialId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 과외입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.TUTORIAL_NOT_FOUND));
 
         User mentee = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         Payment payment = Payment.create(tutorial, mentee, request.getCount());
         Payment savedPayment = paymentRepository.save(payment);
@@ -104,7 +106,7 @@ public class PaymentService {
     public PaymentVerifyResponse verifyAndCompletePayment(Long paymentId, PaymentVerifyRequest request) {
         // 1. Payment 조회
         Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결제입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT_VALUE));
 
         // 2. PortOne 결제 검증
         Map<String, Object> response = portOneClient.getPaymentDetails(request.getImpUid());

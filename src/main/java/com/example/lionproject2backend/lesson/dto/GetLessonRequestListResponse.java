@@ -20,15 +20,15 @@ import java.util.stream.Collectors;
 @Builder(access = AccessLevel.PRIVATE)
 public class GetLessonRequestListResponse {
 
-    private List<LessonRequestItem> requests;
+    private List<LessonRequestItem> lessons;
 
-    public static GetLessonRequestListResponse from(List<Lesson> lessons) {
-        List<LessonRequestItem> list = lessons.stream()
+    public static GetLessonRequestListResponse from(List<Lesson> lessonList) {
+        List<LessonRequestItem> list = lessonList.stream()
                 .map(LessonRequestItem::from)
                 .collect(Collectors.toList());
 
         return GetLessonRequestListResponse.builder()
-                .requests(list)
+                .lessons(list)
                 .build();
     }
 

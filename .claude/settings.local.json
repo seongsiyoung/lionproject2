@@ -1,7 +1,25 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(wc:*)",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "mcp__playwright__playwright_navigate",
+      "mcp__playwright__playwright_screenshot",
+      "mcp__playwright__playwright_click",
+      "mcp__playwright__playwright_fill",
+      "mcp__playwright__playwright_close",
+      "mcp__playwright__playwright_console_logs",
+      "Bash(./gradlew compileJava:*)",
+      "Bash(lsof:*)",
+      "mcp__playwright__playwright_evaluate",
+      "mcp__playwright__playwright_get_visible_html",
+      "Bash(find:*)",
+      "mcp__playwright__playwright_get_visible_text",
+      "mcp__playwright__playwright_press_key",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI4Iiwicm9sZSI6Ik1FTlRPUiIsInR5cGUiOiJBQ0NFU1MiLCJpYXQiOjE3NjgzMTM4MjcsImV4cCI6MTc2ODMxNTYyN30.kQ8Wx8r4zrpA2C7bPZi_W5lFnGZqo4mG3oYH0d7jNHQ\")"
     ]
   }
 }

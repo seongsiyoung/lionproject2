@@ -10,6 +10,8 @@ import com.example.lionproject2backend.tutorial.dto.GetTutorialResponse;
 import com.example.lionproject2backend.tutorial.dto.PutTutorialStatusUpdateRequest;
 import com.example.lionproject2backend.tutorial.dto.PutTutorialUpdateRequest;
 import com.example.lionproject2backend.tutorial.repository.TutorialRepository;
+import com.example.lionproject2backend.global.exception.custom.CustomException;
+import com.example.lionproject2backend.global.exception.custom.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,10 +28,8 @@ public class TutorialService {
 
     public GetTutorialResponse createTutorial(Long userId, PostTutorialCreateRequest request) {
 
-
         Mentor mentor = mentorRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("멘토 권한이 없는 사용자입니다."));
-
+                .orElseThrow(() -> new CustomException(ErrorCode.MENTOR_FORBIDDEN));
 
         Tutorial tutorial = Tutorial.create(
                 mentor,
@@ -39,15 +39,14 @@ public class TutorialService {
                 request.getDuration()
         );
 
-        // 스킬 조회 (DB에 있는 것만)
-        List<Skill> skills = skillRepository.findAllById(request.getSkillIds());
-
-        // 검증: 요청한 개수 != 실제 조회 개수
-        if (skills.size() != request.getSkillIds().size()) {
-            throw new IllegalArgumentException("존재하지 않는 스킬이 포함되어 있습니다.");
+        // 스킬 등록 (없으면 생성/있으면 재사용) - MentorService와 동일한 방식
+        if (request.getSkills() != null) {
+            for (String skillName : request.getSkills()) {
+                Skill skill = skillRepository.findBySkillName(skillName)
+                        .orElseGet(() -> skillRepository.save(new Skill(skillName)));
+                tutorial.addSkill(skill);
+            }
         }
-
-        skills.forEach(tutorial::addSkill);
 
         Tutorial savedTutorial = tutorialRepository.save(tutorial);
         return GetTutorialResponse.from(savedTutorial);
@@ -57,7 +56,7 @@ public class TutorialService {
     @Transactional(readOnly = true)
     public GetTutorialResponse getTutorial(Long tutorialId) {
         Tutorial tutorial = tutorialRepository.findById(tutorialId)
-                .orElseThrow(() -> new IllegalArgumentException("튜토리얼을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.TUTORIAL_NOT_FOUND));
 
         return GetTutorialResponse.from(tutorial);
     }
@@ -74,10 +73,10 @@ public class TutorialService {
     public GetTutorialResponse updateTutorial(Long userId, Long tutorialId, PutTutorialUpdateRequest request) {
 
         Mentor mentor = mentorRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("멘토 권한이 없는 사용자입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.MENTOR_FORBIDDEN));
 
         Tutorial tutorial = tutorialRepository.findByIdAndMentorId(tutorialId, mentor.getId())
-                .orElseThrow(() -> new IllegalArgumentException("튜토리얼을 수정할 권한이 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.TUTORIAL_FORBIDDEN));
 
 
         // 수정
@@ -93,7 +92,7 @@ public class TutorialService {
         if (skillIds != null && !skillIds.isEmpty()) {
                 List<Skill> skills = skillRepository.findAllById(skillIds); // 실제 Skill 엔티티 가져오기
             if (skills.size() != skillIds.size()) {
-                throw new IllegalArgumentException("존재하지 않는 스킬이 포함되어 있습니다.");
+                throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
             }
             tutorial.updateSkills(skills); // 새 스킬로 교체
         } else {
@@ -107,10 +106,10 @@ public class TutorialService {
     public Long deleteTutorial(Long userId, Long tutorialId) {
 
         Mentor mentor = mentorRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("멘토 권한이 없는 사용자입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.MENTOR_FORBIDDEN));
 
         Tutorial tutorial = tutorialRepository.findByIdAndMentorId(tutorialId, mentor.getId())
-                .orElseThrow(() -> new IllegalArgumentException("튜토리얼을 수정할 권한이 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.TUTORIAL_FORBIDDEN));
 
 
         Long id = tutorial.getId(); // 삭제 전에 잡아둠
@@ -130,14 +129,25 @@ public class TutorialService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<GetTutorialResponse> getMyTutorials(Long userId) {
+        Mentor mentor = mentorRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MENTOR_FORBIDDEN));
+
+        List<Tutorial> tutorials = tutorialRepository.findByMentorId(mentor.getId());
+        return tutorials.stream()
+                .map(GetTutorialResponse::from)
+                .toList();
+    }
+
     // 상태 업데이트
     public GetTutorialResponse updateTutorialStatus(Long userId, Long tutorialId, PutTutorialStatusUpdateRequest request) {
 
         Mentor mentor = mentorRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("멘토 권한이 없는 사용자입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.MENTOR_FORBIDDEN));
 
         Tutorial tutorial = tutorialRepository.findByIdAndMentorId(tutorialId, mentor.getId())
-                .orElseThrow(() -> new IllegalArgumentException("튜토리얼을 수정할 권한이 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.TUTORIAL_FORBIDDEN));
 
         tutorial.changeStatus(request.getTutorialStatus());
         return GetTutorialResponse.from(tutorial);

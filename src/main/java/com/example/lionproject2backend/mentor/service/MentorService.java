@@ -9,8 +9,12 @@ import com.example.lionproject2backend.mentor.dto.PostMentorApplyResponse;
 import com.example.lionproject2backend.mentor.dto.GetMentorListResponse;
 import com.example.lionproject2backend.mentor.repository.MentorRepository;
 import com.example.lionproject2backend.mentor.repository.MentorSkillRepository;
+import com.example.lionproject2backend.review.domain.Review;
+import com.example.lionproject2backend.review.repository.ReviewRepository;
 import com.example.lionproject2backend.skill.domain.Skill;
 import com.example.lionproject2backend.skill.repository.SkillRepository;
+import com.example.lionproject2backend.tutorial.domain.Tutorial;
+import com.example.lionproject2backend.tutorial.repository.TutorialRepository;
 import com.example.lionproject2backend.user.domain.User;
 import com.example.lionproject2backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +33,8 @@ public class MentorService {
     private final UserRepository userRepository;
     private final SkillRepository skillRepository;
     private final MentorSkillRepository mentorSkillRepository;
+    private final TutorialRepository tutorialRepository;
+    private final ReviewRepository reviewRepository;
 
     /**
      * 멘토 신청 (자동 승인 상태)
@@ -47,6 +53,9 @@ public class MentorService {
         // 멘토 생성 (APPROVED)
         Mentor mentor = new Mentor(user, request.getCareer());
         Mentor savedMentor = mentorRepository.save(mentor);
+
+        // 사용자 역할을 MENTOR로 변경
+        user.promoteToMentor();
 
         // 스킬 등록 (없으면 생성/있으면 재사용)
         for (String skillName : request.getSkills()) {
@@ -101,12 +110,9 @@ public class MentorService {
                 .map(ms -> ms.getSkill().getSkillName())
                 .collect(Collectors.toList());
 
-        return new GetMentorDetailResponse(
-                mentor.getId(),
-                mentor.getUser().getNickname(),
-                mentor.getCareer(),
-                mentor.getReviewCount(),
-                skills
-        );
+        List<Tutorial> tutorials = tutorialRepository.findByMentorId(mentorId);
+        List<Review> reviews = reviewRepository.findByMentorId(mentorId);
+
+        return GetMentorDetailResponse.from(mentor, skills, tutorials, reviews);
     }
 }

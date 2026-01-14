@@ -66,6 +66,14 @@ public class TutorialController {
     }
 
 
+    @GetMapping("/my")
+    public ResponseEntity<ApiResponse<List<GetTutorialResponse>>> getMyTutorials(
+            @AuthenticationPrincipal Long userId
+    ) {
+        List<GetTutorialResponse> response = tutorialService.getMyTutorials(userId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<GetTutorialResponse>>> searchTutorials(
             @RequestParam String keyword

@@ -6,6 +6,8 @@ import com.example.lionproject2backend.lesson.domain.LessonStatus;
 import com.example.lionproject2backend.lesson.repository.LessonRepository;
 import com.example.lionproject2backend.ticket.domain.Ticket;
 import com.example.lionproject2backend.ticket.repository.TicketRepository;
+import com.example.lionproject2backend.global.exception.custom.CustomException;
+import com.example.lionproject2backend.global.exception.custom.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,16 +32,16 @@ public class LessonServiceImpl implements LessonService {
     public PostLessonRegisterResponse register(Long ticketId, Long userId, PostLessonRegisterRequest request) {
         // 이용권 조회
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이용권입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.TICKET_NOT_FOUND));
 
         // 이용권 소유자 검증
         if (!ticket.getMentee().getId().equals(userId)) {
-            throw new IllegalArgumentException("이용권 사용 권한이 없습니다.");
+            throw new CustomException(ErrorCode.TICKET_FORBIDDEN);
         }
 
         // 이용권 유효성 검증
         if (!ticket.hasRemaining()) {
-            throw new IllegalStateException("남은 이용권이 없습니다.");
+            throw new CustomException(ErrorCode.TICKET_EXHAUSTED);
         }
 
         // Lesson 생성 (내부에서 ticket.use() 호출)
@@ -92,10 +94,10 @@ public class LessonServiceImpl implements LessonService {
     @Override
     public GetLessonDetailResponse getLessonDetail(Long lessonId, Long userId) {
         Lesson lesson = lessonRepository.findByIdWithDetails(lessonId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수업입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.LESSON_NOT_FOUND));
 
         if (!lesson.isParticipant(userId)) {
-            throw new IllegalArgumentException("해당 수업을 조회할 권한이 없습니다.");
+            throw new CustomException(ErrorCode.LESSON_FORBIDDEN);
         }
 
         return GetLessonDetailResponse.from(lesson, userId);
@@ -108,7 +110,7 @@ public class LessonServiceImpl implements LessonService {
     @Transactional
     public PutLessonStatusUpdateResponse confirm(Long lessonId, Long mentorId) {
         Lesson lesson = lessonRepository.findByIdWithDetails(lessonId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수업입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.LESSON_NOT_FOUND));
 
         lesson.confirm(mentorId);
 
@@ -122,7 +124,7 @@ public class LessonServiceImpl implements LessonService {
     @Transactional
     public PutLessonStatusUpdateResponse reject(Long lessonId, Long mentorId, PutLessonRejectRequest request) {
         Lesson lesson = lessonRepository.findByIdWithDetails(lessonId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수업입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.LESSON_NOT_FOUND));
 
         // 도메인 로직 실행 (내부에서 ticket.restore() 호출)
         lesson.reject(mentorId, request.getRejectReason());
@@ -137,7 +139,7 @@ public class LessonServiceImpl implements LessonService {
     @Transactional
     public PutLessonStatusUpdateResponse start(Long lessonId, Long mentorId) {
         Lesson lesson = lessonRepository.findByIdWithDetails(lessonId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수업입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.LESSON_NOT_FOUND));
 
         lesson.start(mentorId);
 
@@ -151,7 +153,7 @@ public class LessonServiceImpl implements LessonService {
     @Transactional
     public PutLessonStatusUpdateResponse complete(Long lessonId, Long mentorId) {
         Lesson lesson = lessonRepository.findByIdWithDetails(lessonId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수업입니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.LESSON_NOT_FOUND));
 
         lesson.complete(mentorId);
 

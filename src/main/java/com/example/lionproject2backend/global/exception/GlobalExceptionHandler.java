@@ -4,6 +4,8 @@ package com.example.lionproject2backend.global.exception;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -74,6 +76,66 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail(
                         ErrorCode.INVALID_INPUT_VALUE.getCode(),
                         "요청 파라미터 타입이 올바르지 않습니다."
+                ));
+    }
+
+    /**
+     * 인증 실패 (잘못된 비밀번호, 존재하지 않는 사용자 등)
+     */
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBadCredentialsException(BadCredentialsException e) {
+        log.warn("BadCredentialsException: {}", e.getMessage());
+
+        return ResponseEntity
+                .status(ErrorCode.INVALID_LOGIN.getStatus())
+                .body(ApiResponse.fail(
+                        ErrorCode.INVALID_LOGIN.getCode(),
+                        ErrorCode.INVALID_LOGIN.getMessage()
+                ));
+    }
+
+    /**
+     * 인증 예외 (Spring Security)
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(AuthenticationException e) {
+        log.warn("AuthenticationException: {}", e.getMessage());
+
+        return ResponseEntity
+                .status(ErrorCode.INVALID_LOGIN.getStatus())
+                .body(ApiResponse.fail(
+                        ErrorCode.INVALID_LOGIN.getCode(),
+                        ErrorCode.INVALID_LOGIN.getMessage()
+                ));
+    }
+
+    /**
+     * 비즈니스 로직 검증 오류 (잘못된 인자)
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException e) {
+        log.warn("IllegalArgumentException: {}", e.getMessage());
+
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
+                .body(ApiResponse.fail(
+                        ErrorCode.INVALID_INPUT_VALUE.getCode(),
+                        e.getMessage()
+                ));
+    }
+
+    /**
+     * 비즈니스 로직 상태 오류 (잘못된 상태)
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalStateException(IllegalStateException e) {
+        log.warn("IllegalStateException: {}", e.getMessage());
+
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
+                .body(ApiResponse.fail(
+                        ErrorCode.INVALID_INPUT_VALUE.getCode(),
+                        e.getMessage()
                 ));
     }
 

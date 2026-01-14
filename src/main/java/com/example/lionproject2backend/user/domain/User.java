@@ -71,5 +71,12 @@ public class User extends BaseEntity{
             this.introduction = introduction;
         }
     }
+
+    /**
+     * 멘토로 역할 변경
+     */
+    public void promoteToMentor() {
+        this.userRole = UserRole.MENTOR;
+    }
 }
 

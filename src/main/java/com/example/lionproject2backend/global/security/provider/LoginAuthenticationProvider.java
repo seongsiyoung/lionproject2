@@ -1,12 +1,11 @@
 package com.example.lionproject2backend.global.security.provider;
 
-import com.example.lionproject2backend.global.exception.custom.CustomException;
-import com.example.lionproject2backend.global.exception.custom.ErrorCode;
 import com.example.lionproject2backend.user.domain.User;
 import com.example.lionproject2backend.user.repository.UserRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -26,10 +25,10 @@ public class LoginAuthenticationProvider implements AuthenticationProvider {
         String rawPassword = (String) authentication.getCredentials();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIAL));
+                .orElseThrow(() -> new BadCredentialsException("이메일 또는 비밀번호가 올바르지 않습니다."));
 
         if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
-            throw new CustomException(ErrorCode.INVALID_CREDENTIAL);
+            throw new BadCredentialsException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 
         return new UsernamePasswordAuthenticationToken(

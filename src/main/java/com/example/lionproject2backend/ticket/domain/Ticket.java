@@ -84,4 +84,32 @@ public class Ticket extends BaseEntity {
     public boolean hasRemaining() {
         return this.remainingCount > 0 && !isExpired();
     }
+
+
+    public boolean hasBeenUsed() {
+        return this.remainingCount < this.totalCount;
+    }
+
+    public void validateRefund() {
+        if (hasBeenUsed()) {
+            throw new IllegalStateException("한 번이라도 레슨을 받은 티켓은 환불할 수 없습니다");
+        }
+        if (isExpired()) {
+            throw new IllegalStateException("만료된 이용권은 환불할 수 없습니다");
+        }
+        if (this.remainingCount <= 0) {
+            throw new IllegalStateException("환불할 티켓이 없습니다");
+        }
+    }
+
+
+    // 환불 금액 계산
+    public int calculateRefundAmount() {
+        return this.payment.getAmount();
+    }
+
+    // 환불 처리 후 잔여 이용 횟수 차감
+    public void applyRefund() {
+        this.remainingCount = 0;
+    }
 }

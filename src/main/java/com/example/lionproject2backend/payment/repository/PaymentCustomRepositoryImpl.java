@@ -31,14 +31,16 @@ public class PaymentCustomRepositoryImpl implements PaymentCustomRepository {
             Pageable pageable
     ) {
 
-        BooleanBuilder builder = getBooleanBuilder(menteeId, status, keyword);
 
         JPAQuery<Payment> query = queryFactory
                 .selectFrom(payment)
                 .join(payment.tutorial, tutorial).fetchJoin()
                 .join(tutorial.mentor, mentor).fetchJoin()
                 .join(mentor.user, user).fetchJoin()
-                .where(builder)
+                .where(menteeEq(menteeId),
+                        statusEq(status),
+                        keywordContains(keyword)
+                )
                 .orderBy(payment.createdAt.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize());
@@ -50,23 +52,12 @@ public class PaymentCustomRepositoryImpl implements PaymentCustomRepository {
                 .join(payment.tutorial, tutorial)
                 .join(tutorial.mentor, mentor)
                 .join(mentor.user, user)
-                .where(builder);
+                .where(menteeEq(menteeId),
+                        statusEq(status),
+                        keywordContains(keyword)
+                );
 
         return PageableExecutionUtils.getPage(query.fetch(), pageable, countQuery::fetchOne);
-    }
-
-    public static BooleanBuilder getBooleanBuilder(
-            Long menteeId,
-            PaymentStatus status,
-            String keyword
-    ) {
-        BooleanBuilder builder = new BooleanBuilder();
-
-        builder.and(menteeEq(menteeId));
-        builder.and(statusEq(status));
-        builder.and(keywordContains(keyword));
-
-        return builder;
     }
 
     /* =======================

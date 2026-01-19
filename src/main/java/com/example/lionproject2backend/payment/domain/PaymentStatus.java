@@ -4,5 +4,6 @@ public enum PaymentStatus {
     PENDING,
     PAID,
     CANCELLED,
-    REFUNDED
+    REFUND_REQUESTED,    // 환불 승인 대기 중
+    REFUNDED             // 환불 완료
 }

@@ -12,8 +12,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -87,6 +90,70 @@ public class PayController {
             @AuthenticationPrincipal Long userId
     ) {
         GetPaymentStatsResponse response = paymentService.getPaymentStats(userId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * 환불 신청 (멘티가 환불 요청)
+     * POST /api/payments/{paymentId}/refund/request
+     */
+    @PostMapping("/payments/{paymentId}/refund/request")
+    public ResponseEntity<ApiResponse<Void>> requestRefund(
+            @PathVariable Long paymentId,
+            @AuthenticationPrincipal Long userId
+    ) {
+        paymentService.requestRefund(paymentId, userId);
+        return ResponseEntity.ok(ApiResponse.success("환불 신청이 완료되었습니다. 관리자 승인을 기다려주세요."));
+    }
+
+    /**
+     * 환불 승인 (관리자가 환불 승인 및 처리)
+     * POST /api/payments/{paymentId}/refund/approve
+     */
+    @PostMapping("/payments/{paymentId}/refund/approve")
+    public ResponseEntity<ApiResponse<Void>> approveRefund(
+            @PathVariable Long paymentId,
+            @AuthenticationPrincipal Long adminUserId
+    ) {
+        paymentService.approveRefund(paymentId, adminUserId);
+        return ResponseEntity.ok(ApiResponse.success("환불이 승인되었고 처리되었습니다."));
+    }
+
+    /**
+     * 환불 거절 (관리자가 환불 신청 거절)
+     * POST /api/payments/{paymentId}/refund/reject
+     */
+    @PostMapping("/payments/{paymentId}/refund/reject")
+    public ResponseEntity<ApiResponse<Void>> rejectRefund(
+            @PathVariable Long paymentId,
+            @AuthenticationPrincipal Long adminUserId
+    ) {
+        paymentService.rejectRefund(paymentId, adminUserId);
+        return ResponseEntity.ok(ApiResponse.success("환불 신청이 거절되었습니다."));
+    }
+
+    /**
+     * 환불 신청 취소 (멘티가 환불 신청 취소)
+     * POST /api/payments/{paymentId}/refund/cancel
+     */
+    @PostMapping("/payments/{paymentId}/refund/cancel")
+    public ResponseEntity<ApiResponse<Void>> cancelRefundRequest(
+            @PathVariable Long paymentId,
+            @AuthenticationPrincipal Long userId
+    ) {
+        paymentService.cancelRefundRequest(paymentId, userId);
+        return ResponseEntity.ok(ApiResponse.success("환불 신청이 취소되었습니다."));
+    }
+
+    /**
+     * 환불 신청 목록 조회 (관리자용)
+     * GET /api/admin/payments/refund-requests
+     */
+    @GetMapping("/admin/payments/refund-requests")
+    public ResponseEntity<ApiResponse<List<GetPaymentListResponse>>> getRefundRequestList(
+            @AuthenticationPrincipal Long adminUserId
+    ) {
+        List<GetPaymentListResponse> response = paymentService.getRefundRequestList(adminUserId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

@@ -51,10 +51,22 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public void logout(Authentication authentication, HttpServletResponse response) {
-        Long userId = (Long) authentication.getPrincipal();
-        authService.logout(userId);
+    public ApiResponse<Void> logout(
+            @CookieValue(name = "refreshToken", required = false) String refreshToken,
+            HttpServletResponse response) {
+        if (refreshToken != null) {
+            authService.logout(refreshToken);
+        }
         authCookieManager.deleteRefreshToken(response);
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/logout/all")
+    public ApiResponse<Void> logoutAll(Authentication authentication, HttpServletResponse response) {
+        Long userId = (Long) authentication.getPrincipal();
+        authService.logoutAll(userId);
+        authCookieManager.deleteRefreshToken(response);
+        return ApiResponse.success(null);
     }
 
     @PostMapping("/refresh")

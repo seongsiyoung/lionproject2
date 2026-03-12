@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -49,6 +50,7 @@ public class JwtUtil {
         return Jwts.builder()
                 .setSubject(String.valueOf(user.getId()))
                 .claim("type", TokenType.REFRESH.name())
+                .claim("jti", UUID.randomUUID().toString())
                 .setIssuedAt(new Date(now))
                 .setExpiration(new Date(now + props.getRefreshExpMs()))
                 .signWith(key(), SignatureAlgorithm.HS256)
@@ -77,6 +79,10 @@ public class JwtUtil {
 
     public Long getUserId(String token) {
         return Long.valueOf(parseClaims(token).getSubject());
+    }
+
+    public String getJti(String token) {
+        return parseClaims(token).get("jti", String.class);
     }
 
     public String getRole(String token) {

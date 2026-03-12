@@ -17,7 +17,9 @@ import com.example.lionproject2backend.user.repository.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -38,6 +40,7 @@ public class AuthService {
     private final JwtProperties jwtProperties;
 
     private static final String REDIS_RT_PREFIX = "RT:";
+    private static final String REDIS_USER_RT_PREFIX = "USER_RT:";
 
     @Transactional
     public PostAuthSignupResponse signup(String email, String rawPassword, String nickname, UserRole role) {
@@ -71,42 +74,63 @@ public class AuthService {
 
         String accessToken = jwtUtil.createAccessToken(user);
         String refreshTokenString = jwtUtil.createRefreshToken(user);
+        String jti = jwtUtil.getJti(refreshTokenString);
 
-        // Redis에 RT:{userId}로 저장 (String Value 방식 - SETEX)
+        // 1. RT:{jti} -> userId 저장
         redisTemplate.opsForValue().set(
-                REDIS_RT_PREFIX + user.getId(),
-                refreshTokenString,
+                REDIS_RT_PREFIX + jti,
+                String.valueOf(user.getId()),
                 jwtProperties.getRefreshExpMs(),
                 TimeUnit.MILLISECONDS
         );
+
+        // 2. USER_RT:{userId} -> Set<jti> 인덱싱 (TTL 없음)
+        redisTemplate.opsForSet().add(REDIS_USER_RT_PREFIX + user.getId(), jti);
 
         return new TokenDto(accessToken, refreshTokenString);
     }
 
     @Transactional
-    public void logout(Long userId) {
-        redisTemplate.delete(REDIS_RT_PREFIX + userId);
+    public void logout(String refreshToken) {
+        jwtUtil.validate(refreshToken);
+        String jti = jwtUtil.getJti(refreshToken);
+        Long userId = jwtUtil.getUserId(refreshToken);
+
+        // 특정 세션만 삭제
+        redisTemplate.delete(REDIS_RT_PREFIX + jti);
+        redisTemplate.opsForSet().remove(REDIS_USER_RT_PREFIX + userId, jti);
+    }
+
+    @Transactional
+    public void logoutAll(Long userId) {
+        String userKey = REDIS_USER_RT_PREFIX + userId;
+        Set<String> jtis = redisTemplate.opsForSet().members(userKey);
+
+        if (jtis != null && !jtis.isEmpty()) {
+            Set<String> rtKeys = jtis.stream()
+                    .map(jti -> REDIS_RT_PREFIX + jti)
+                    .collect(Collectors.toSet());
+            redisTemplate.delete(rtKeys);
+        }
+        redisTemplate.delete(userKey);
     }
 
     @Transactional
     public TokenDto reissue(String refreshTokenFromCookie) {
-
         jwtUtil.validate(refreshTokenFromCookie);
         jwtUtil.validateType(refreshTokenFromCookie, TokenType.REFRESH);
 
-        // 1. Refresh Token에서 userId 추출
+        String jti = jwtUtil.getJti(refreshTokenFromCookie);
         Long userId = jwtUtil.getUserId(refreshTokenFromCookie);
 
-        // 2. Redis에서 해당 userId의 토큰 조회 (RT:{userId})
-        String storedToken = redisTemplate.opsForValue().get(REDIS_RT_PREFIX + userId);
-        if (storedToken == null) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
+        // 1. Atomic Get-and-Delete (재발급 시 기존 JTI 즉시 무효화)
+        String storedUserId = redisTemplate.opsForValue().getAndDelete(REDIS_RT_PREFIX + jti);
+        
+        // 2. USER_RT에서 해당 JTI 제거
+        redisTemplate.opsForSet().remove(REDIS_USER_RT_PREFIX + userId, jti);
 
-        // 3. 토큰 일치 여부 확인 (RTR 보안)
-        if (!storedToken.equals(refreshTokenFromCookie)) {
-            // 토큰이 일치하지 않으면 탈취 가능성이 있으므로 삭제 후 에러 처리
-            redisTemplate.delete(REDIS_RT_PREFIX + userId);
+        // 3. 유효성 확인 (null이면 만료되었거나 이미 사용된 토큰)
+        if (storedUserId == null) {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
@@ -115,16 +139,36 @@ public class AuthService {
 
         String newAccess = jwtUtil.createAccessToken(user);
         String newRefreshString = jwtUtil.createRefreshToken(user);
+        String newJti = jwtUtil.getJti(newRefreshString);
 
-        // 4. 새로운 토큰으로 교체 (RTR) - 단순 SETEX
+        // 4. 새로운 토큰 정보 저장
         redisTemplate.opsForValue().set(
-                REDIS_RT_PREFIX + userId,
-                newRefreshString,
+                REDIS_RT_PREFIX + newJti,
+                String.valueOf(userId),
                 jwtProperties.getRefreshExpMs(),
                 TimeUnit.MILLISECONDS
         );
+        redisTemplate.opsForSet().add(REDIS_USER_RT_PREFIX + userId, newJti);
+
+        // 5. Cleanup (Dead JTI 정리)
+        cleanupDeadJtis(userId);
 
         return new TokenDto(newAccess, newRefreshString);
+    }
+
+    private void cleanupDeadJtis(Long userId) {
+        String userKey = REDIS_USER_RT_PREFIX + userId;
+        Set<String> jtis = redisTemplate.opsForSet().members(userKey);
+
+        if (jtis != null) {
+            Set<String> deadJtis = jtis.stream()
+                    .filter(jti -> !Boolean.TRUE.equals(redisTemplate.hasKey(REDIS_RT_PREFIX + jti)))
+                    .collect(Collectors.toSet());
+
+            if (!deadJtis.isEmpty()) {
+                redisTemplate.opsForSet().remove(userKey, deadJtis.toArray());
+            }
+        }
     }
 
     /**

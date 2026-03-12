@@ -72,9 +72,10 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        String accessToken = jwtUtil.createAccessToken(user);
-        String refreshTokenString = jwtUtil.createRefreshToken(user);
-        String jti = jwtUtil.getJti(refreshTokenString);
+        String accessToken = jwtUtil.createAccessToken(user.getId(), user.getUserRole().name());
+        JwtUtil.RefreshTokenResponse refreshResponse = jwtUtil.createRefreshToken(user.getId(), user.getUserRole().name());
+        String refreshTokenString = refreshResponse.token();
+        String jti = refreshResponse.jti();
 
         // 1. RT:{jti} -> userId 저장
         redisTemplate.opsForValue().set(
@@ -84,10 +85,9 @@ public class AuthService {
                 TimeUnit.MILLISECONDS
         );
 
-        // 2. USER_RT:{userId} -> Set<jti> 인덱싱 (자가 관리를 위해 7일 TTL 설정)
+        // 2. USER_RT:{userId} -> Set<jti> 인덱싱 (로그아웃 관리를 위해 TTL 제거)
         String userKey = REDIS_USER_RT_PREFIX + user.getId();
         redisTemplate.opsForSet().add(userKey, jti);
-        redisTemplate.expire(userKey, 7, TimeUnit.DAYS);
 
         return new TokenDto(accessToken, refreshTokenString);
     }
@@ -95,6 +95,7 @@ public class AuthService {
     @Transactional
     public void logout(String refreshToken) {
         jwtUtil.validate(refreshToken);
+        jwtUtil.validateType(refreshToken, TokenType.REFRESH); // 타입 검증 추가
         String jti = jwtUtil.getJti(refreshToken);
         Long userId = jwtUtil.getUserId(refreshToken);
 
@@ -124,26 +125,28 @@ public class AuthService {
 
         String jti = jwtUtil.getJti(refreshTokenFromCookie);
         Long userId = jwtUtil.getUserId(refreshTokenFromCookie);
+        String role = jwtUtil.getRole(refreshTokenFromCookie); // Token에서 직접 추출
 
         // 1. Atomic Get-and-Delete (재발급 시 기존 JTI 즉시 무효화)
         String storedUserId = redisTemplate.opsForValue().getAndDelete(REDIS_RT_PREFIX + jti);
-        
-        // 2. USER_RT에서 해당 JTI 제거
-        redisTemplate.opsForSet().remove(REDIS_USER_RT_PREFIX + userId, jti);
-
-        // 3. 유효성 확인 (null이면 만료되었거나 이미 사용된 토큰)
         if (storedUserId == null) {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        // 방어적 userId 일치 확인 추가
+        if (!String.valueOf(userId).equals(storedUserId)) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
 
-        String newAccess = jwtUtil.createAccessToken(user);
-        String newRefreshString = jwtUtil.createRefreshToken(user);
-        String newJti = jwtUtil.getJti(newRefreshString);
+        // 2. USER_RT 인덱스에서 이전 JTI 제거
+        redisTemplate.opsForSet().remove(REDIS_USER_RT_PREFIX + userId, jti);
 
-        // 4. 새로운 토큰 정보 저장
+        // 3. 새로운 토큰 정보 저장 (DB 조회 없이 신규 생성)
+        String newAccess = jwtUtil.createAccessToken(userId, role);
+        JwtUtil.RefreshTokenResponse refreshResponse = jwtUtil.createRefreshToken(userId, role);
+        String newRefreshString = refreshResponse.token();
+        String newJti = refreshResponse.jti();
+
         String userKey = REDIS_USER_RT_PREFIX + userId;
         redisTemplate.opsForValue().set(
                 REDIS_RT_PREFIX + newJti,
@@ -152,7 +155,6 @@ public class AuthService {
                 TimeUnit.MILLISECONDS
         );
         redisTemplate.opsForSet().add(userKey, newJti);
-        redisTemplate.expire(userKey, 7, TimeUnit.DAYS); // 세션 인덱스 TTL 갱신
 
         return new TokenDto(newAccess, newRefreshString);
     }

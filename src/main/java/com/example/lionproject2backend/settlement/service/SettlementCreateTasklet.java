@@ -36,19 +36,20 @@ public class SettlementCreateTasklet implements Tasklet {
         YearMonth settlementPeriod = YearMonth.parse(settlementPeriodStr, DateTimeFormatter.ofPattern("yyyy-MM"));
 
         log.info("정산 생성 Tasklet 시작 - settlementPeriod: {}", settlementPeriodStr);
+        throw new RuntimeException();
 
-        List<SettlementResponse> settlements =
-                settlementService.createSettlements(settlementPeriod);
-
-        int createdCount = settlements.size();
-
-        contribution.incrementWriteCount(createdCount);
-
-        log.info(
-                "정산 생성 Tasklet 완료 - settlementPeriod={}, 생성된 정산 수={}",
-                settlementPeriodStr, createdCount
-        );
-
-        return RepeatStatus.FINISHED;
+        // List<SettlementResponse> settlements =
+        //         settlementService.createSettlements(settlementPeriod);
+        //
+        // int createdCount = settlements.size();
+        //
+        // contribution.incrementWriteCount(createdCount);
+        //
+        // log.info(
+        //         "정산 생성 Tasklet 완료 - settlementPeriod={}, 생성된 정산 수={}",
+        //         settlementPeriodStr, createdCount
+        // );
+        //
+        // return RepeatStatus.FINISHED;
     }
 }

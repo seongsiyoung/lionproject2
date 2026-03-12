@@ -62,3 +62,9 @@ management:
   endpoint:
     health:
       show-details: never
+
+notification:
+  discord:
+    webhook-url: ${DISCORD_WEBHOOK_URL}
+
+

@@ -29,6 +29,7 @@ public class SettlementScheduler {
      * 매월 1일 00:00:00에 실행
      * 전월 정산 생성
      */
+
     @Scheduled(cron = "0 3 15 12 3 ?")
     //@Scheduled(cron = "0 0 0 1 * ?")
     public void createMonthlySettlement() {
@@ -52,7 +53,7 @@ public class SettlementScheduler {
         }
     }
 
-    @Scheduled(cron = "0 44 14 19 1 ?")
+    @Scheduled(cron = "0 38 13 12 3 ?")
     //@Scheduled(cron = "0 0 2 7 * ?")
     public void completeMonthlySettlements() {
         YearMonth targetPeriod = YearMonth.now().minusMonths(1);

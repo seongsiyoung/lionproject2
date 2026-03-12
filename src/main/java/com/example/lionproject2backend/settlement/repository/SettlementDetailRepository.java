@@ -2,6 +2,7 @@ package com.example.lionproject2backend.settlement.repository;
 
 import com.example.lionproject2backend.payment.domain.Payment;
 import com.example.lionproject2backend.settlement.domain.SettlementDetail;
+import com.example.lionproject2backend.settlement.domain.SettlementDetailType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -11,5 +12,6 @@ public interface SettlementDetailRepository extends JpaRepository<SettlementDeta
 
     List<SettlementDetail> findBySettlementIdOrderByCreatedAtDesc(Long settlementId);
     Optional<SettlementDetail> findByPayment(Payment payment);
+    boolean existsByPaymentAndType(Payment payment, SettlementDetailType type);
 
 }

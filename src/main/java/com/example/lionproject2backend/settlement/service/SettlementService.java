@@ -1,40 +1,30 @@
 package com.example.lionproject2backend.settlement.service;
 
-import static com.example.lionproject2backend.mentor.domain.QMentor.mentor;
-
 import com.example.lionproject2backend.global.exception.custom.CustomException;
 import com.example.lionproject2backend.global.exception.custom.ErrorCode;
 import com.example.lionproject2backend.mentor.domain.Mentor;
 import com.example.lionproject2backend.mentor.repository.MentorRepository;
 import com.example.lionproject2backend.payment.domain.Payment;
-import com.example.lionproject2backend.payment.repository.PaymentRepository;
-import com.example.lionproject2backend.settlement.domain.AdjustmentType;
 import com.example.lionproject2backend.settlement.domain.Settlement;
-import com.example.lionproject2backend.settlement.domain.SettlementAdjustment;
 import com.example.lionproject2backend.settlement.domain.SettlementDetail;
+import com.example.lionproject2backend.settlement.domain.SettlementDetailType;
 import com.example.lionproject2backend.settlement.domain.SettlementStatus;
 import com.example.lionproject2backend.settlement.dto.*;
-import com.example.lionproject2backend.settlement.repository.SettlementAdjustmentRepository;
 import com.example.lionproject2backend.settlement.repository.SettlementDetailRepository;
 import com.example.lionproject2backend.settlement.repository.SettlementRepository;
-import com.example.lionproject2backend.tutorial.domain.Tutorial;
-import com.example.lionproject2backend.tutorial.repository.TutorialRepository;
 import com.example.lionproject2backend.user.domain.User;
 import com.example.lionproject2backend.user.domain.UserRole;
 import com.example.lionproject2backend.user.repository.UserRepository;
-import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,14 +34,17 @@ public class SettlementService {
 
     private final SettlementRepository settlementRepository;
     private final SettlementDetailRepository settlementDetailRepository;
-    private final SettlementAdjustmentRepository settlementAdjustmentRepository;
     private final MentorRepository mentorRepository;
     private final UserRepository userRepository;
-    private final TutorialRepository tutorialRepository;
+
+    private static final int PLATFORM_FEE_PERCENT = 10;
 
     /**
-     * 정산 생성 (특정 기간의 결제 내역 조회 후 멘토별로 정산 생성)
-     * @return 생성된 정산 목록
+     * 정산 생성 (불변 이벤트 원장 기반)
+     * 1. 이번 달 미정산 원장(PAYMENT + REFUND) 조회
+     * 2. 멘토별 집계 (SUM)
+     * 3. 이전 누적 미소진 이월액 반영
+     * 4. payableAmount / carryOverAmount 계산
      */
     @Transactional
     public List<SettlementResponse> createSettlements(YearMonth settlementPeriod) {
@@ -73,23 +66,33 @@ public class SettlementService {
 
         detailsByMentor.forEach((mentor, mentorDetails) -> {
 
+            // 1. 원장 집계 (PAYMENT 양수 + REFUND 음수 → 순합산)
             SettlementCalculation calc = SettlementCalculation.from(mentorDetails);
-            int settlementAmount = calc.getSettlementAmount();
 
-            int refundApplied =
-                    calculateRefundAmount(mentor, settlementPeriod, settlementAmount);
+            // 2. 이전 누적 미소진 이월액 조회
+            int previousCarryOver = getOutstandingCarryOver(mentor, settlementPeriod);
 
+            // 3. 지급액/이월액 계산
+            int adjustedNet = calc.getSettlementAmount() - previousCarryOver;
+            int payableAmount = Math.max(0, adjustedNet);
+            int carryOverAmount = Math.max(0, -adjustedNet);
+
+            // 4. Settlement 생성
             Settlement settlement = Settlement.create(
                     mentor,
                     settlementPeriod,
-                    calc.getTotalAmount(),
+                    calc.getTotalPaymentAmount(),
                     calc.getPlatformFee(),
-                    settlementAmount,
-                    refundApplied
+                    calc.getSettlementAmount(),
+                    calc.getRefundAmount(),
+                    previousCarryOver,
+                    payableAmount,
+                    carryOverAmount
             );
 
             settlementRepository.save(settlement);
 
+            // 5. 원장에 settlement_id 연결
             mentorDetails.forEach(d -> d.assignSettlement(settlement));
             settlementDetailRepository.saveAll(mentorDetails);
 
@@ -117,8 +120,8 @@ public class SettlementService {
 
         settlement.complete();
 
-        log.info("정산 지급 완료 처리. settlementId: {}, mentorId: {}, settlementAmount: {}",
-                settlementId, settlement.getMentor().getId(), settlement.getFinalSettlementAmount());
+        log.info("정산 지급 완료 처리. settlementId: {}, mentorId: {}, payableAmount: {}",
+                settlementId, settlement.getMentor().getId(), settlement.getPayableAmount());
 
         return SettlementResponse.from(settlement);
     }
@@ -154,11 +157,6 @@ public class SettlementService {
 
     /**
      * 정산 목록 조회
-     * 멘토: 자신의 정산만 조회
-     * 관리자: 모든 정산 조회
-     * - startPeriod가 null이고 endPeriod가 있으면: 처음부터 endPeriod까지
-     * - startPeriod가 있고 endPeriod가 null이면: startPeriod부터 최근까지
-     * - 둘 다 null이면: 모든 기간
      */
     @Transactional(readOnly = true)
     public List<SettlementResponse> getSettlementList(
@@ -188,73 +186,45 @@ public class SettlementService {
     }
 
     /**
-     * 환불 처리 시 정산 금액 조정 (전체 환불만 가능)
+     * 환불 시 마이너스 원장 생성 (불변 이벤트 원장)
      * PaymentService에서 호출
      * @param refundedPayment 환불된 결제
      */
     @Transactional
-    public void recordRefundAdjustment(Payment refundedPayment) {
+    public void createRefundSettlementDetail(Payment refundedPayment) {
 
-
-        SettlementDetail detail = settlementDetailRepository
-                .findByPayment(refundedPayment)
-                .orElseThrow(() -> new CustomException(ErrorCode.SETTLEMENT_DETAIL_NOT_FOUND));
-
-        int mentorRefundAmount = detail.getSettlementAmount();
-
-        YearMonth targetPeriod =
-                YearMonth.from(refundedPayment.getPaidAt()).plusMonths(1);
-
-        Mentor mentor = detail.getPayment()
-                .getTutorial()
-                .getMentor();
-
-        SettlementAdjustment adjustment = SettlementAdjustment.create(
-                mentor,
-                targetPeriod,
-                mentorRefundAmount,
-                AdjustmentType.REFUND
-        );
-
-        settlementAdjustmentRepository.save(adjustment);
-
-        log.info("환불 조정 기록 생성 - paymentId={}, period={}, amount={}",
-                refundedPayment.getId(),
-                targetPeriod,
-                mentorRefundAmount
-        );
-    }
-
-    private int calculateRefundAmount(
-            Mentor mentor,
-            YearMonth period,
-            int settlementAmount
-    ) {
-        List<SettlementAdjustment> adjustments =
-                settlementAdjustmentRepository.findApplicableAdjustments(mentor, period);
-
-        int remaining = settlementAmount;
-        int refundApplied = 0;
-
-        for (SettlementAdjustment adj : adjustments) {
-            if (remaining <= 0) break;
-
-            int remainAdjAmount = adj.getRemainingAmount();
-            if (remainAdjAmount <= 0) continue;
-
-            int applied = Math.min(remaining, remainAdjAmount);
-
-            adj.applyPartially(applied);
-            refundApplied += applied;
-            remaining -= applied;
+        // 서비스단 중복 체크 (DB 유니크 제약은 마지막 안전망)
+        if (settlementDetailRepository.existsByPaymentAndType(
+                refundedPayment, SettlementDetailType.REFUND)) {
+            log.warn("이미 환불 원장이 존재합니다. paymentId={}", refundedPayment.getId());
+            return;
         }
 
-        return refundApplied;
+        int platformFee = refundedPayment.getAmount() * PLATFORM_FEE_PERCENT / 100;
+        SettlementDetail refundDetail = SettlementDetail.createRefund(
+                refundedPayment, platformFee, LocalDateTime.now()
+        );
+        settlementDetailRepository.save(refundDetail);
+
+        log.info("환불 원장 생성 - paymentId={}, amount=-{}",
+                refundedPayment.getId(), refundedPayment.getAmount());
+    }
+
+    /**
+     * 누적 미소진 이월액 조회
+     * 직전 Settlement의 carryOverAmount를 가져온다.
+     * (이월은 누적되어 다음 달 Settlement에 반영되므로 직전 것만 보면 됨)
+     */
+    private int getOutstandingCarryOver(Mentor mentor, YearMonth currentPeriod) {
+        YearMonth previousPeriod = currentPeriod.minusMonths(1);
+        return settlementRepository
+                .findByMentorAndSettlementPeriod(mentor, previousPeriod)
+                .map(Settlement::getCarryOverAmount)
+                .orElse(0);
     }
 
     @Transactional
     public int completeSettlementsByPeriod(YearMonth period) {
-
         List<Settlement> settlements =
                 settlementRepository.findBySettlementPeriodAndStatus(period, SettlementStatus.PENDING);
 
@@ -264,5 +234,4 @@ public class SettlementService {
 
         return settlements.size();
     }
-
 }

@@ -2,12 +2,10 @@ package com.example.lionproject2backend.auth.service;
 
 import com.example.lionproject2backend.auth.cookie.CookieProperties;
 import com.example.lionproject2backend.auth.cookie.CookieUtil;
-import com.example.lionproject2backend.auth.domain.RefreshTokenStorage;
 import com.example.lionproject2backend.auth.dto.PostAuthLoginResponse;
 import com.example.lionproject2backend.auth.dto.PostAuthSignupResponse;
 import com.example.lionproject2backend.auth.dto.PostDuplicateCheckResponse;
 import com.example.lionproject2backend.auth.dto.TokenDto;
-import com.example.lionproject2backend.auth.repository.RefreshTokenStorageRepository;
 import com.example.lionproject2backend.global.exception.custom.CustomException;
 import com.example.lionproject2backend.global.exception.custom.ErrorCode;
 import com.example.lionproject2backend.global.security.jwt.JwtProperties;
@@ -18,6 +16,8 @@ import com.example.lionproject2backend.user.domain.UserRole;
 import com.example.lionproject2backend.user.repository.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import java.util.concurrent.TimeUnit;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -34,7 +34,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
-    private final RefreshTokenStorageRepository refreshRepo;
+    private final StringRedisTemplate redisTemplate;
+    private final JwtProperties jwtProperties;
+
+    private static final String REDIS_RT_PREFIX = "RT:";
 
     @Transactional
     public PostAuthSignupResponse signup(String email, String rawPassword, String nickname, UserRole role) {
@@ -67,23 +70,22 @@ public class AuthService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         String accessToken = jwtUtil.createAccessToken(user);
-        String refreshToken = jwtUtil.createRefreshToken(user);
+        String refreshTokenString = jwtUtil.createRefreshToken(user);
 
-        refreshRepo.findByUser(user)
-                .ifPresentOrElse(
-                        refreshTokenStorage -> refreshTokenStorage.update(refreshToken),
-                        () -> refreshRepo.save(RefreshTokenStorage.create(user, refreshToken))
-                );
+        // Redis에 RT:{userId}로 저장 (String Value 방식 - SETEX)
+        redisTemplate.opsForValue().set(
+                REDIS_RT_PREFIX + user.getId(),
+                refreshTokenString,
+                jwtProperties.getRefreshExpMs(),
+                TimeUnit.MILLISECONDS
+        );
 
-        return new TokenDto(accessToken, refreshToken);
+        return new TokenDto(accessToken, refreshTokenString);
     }
 
     @Transactional
     public void logout(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        refreshRepo.deleteByUser(user);
+        redisTemplate.delete(REDIS_RT_PREFIX + userId);
     }
 
     @Transactional
@@ -92,17 +94,37 @@ public class AuthService {
         jwtUtil.validate(refreshTokenFromCookie);
         jwtUtil.validateType(refreshTokenFromCookie, TokenType.REFRESH);
 
-        RefreshTokenStorage refreshTokenStorage = refreshRepo.findByRefreshToken(refreshTokenFromCookie)
-                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REFRESH_TOKEN));
+        // 1. Refresh Token에서 userId 추출
+        Long userId = jwtUtil.getUserId(refreshTokenFromCookie);
 
-        User user = refreshTokenStorage.getUser();
+        // 2. Redis에서 해당 userId의 토큰 조회 (RT:{userId})
+        String storedToken = redisTemplate.opsForValue().get(REDIS_RT_PREFIX + userId);
+        if (storedToken == null) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        // 3. 토큰 일치 여부 확인 (RTR 보안)
+        if (!storedToken.equals(refreshTokenFromCookie)) {
+            // 토큰이 일치하지 않으면 탈취 가능성이 있으므로 삭제 후 에러 처리
+            redisTemplate.delete(REDIS_RT_PREFIX + userId);
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         String newAccess = jwtUtil.createAccessToken(user);
-        String newRefresh = jwtUtil.createRefreshToken(user);
+        String newRefreshString = jwtUtil.createRefreshToken(user);
 
-        refreshTokenStorage.update(newRefresh);
+        // 4. 새로운 토큰으로 교체 (RTR) - 단순 SETEX
+        redisTemplate.opsForValue().set(
+                REDIS_RT_PREFIX + userId,
+                newRefreshString,
+                jwtProperties.getRefreshExpMs(),
+                TimeUnit.MILLISECONDS
+        );
 
-        return new TokenDto(newAccess, newRefresh);
+        return new TokenDto(newAccess, newRefreshString);
     }
 
     /**

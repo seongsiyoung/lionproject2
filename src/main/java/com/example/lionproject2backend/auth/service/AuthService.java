@@ -84,8 +84,10 @@ public class AuthService {
                 TimeUnit.MILLISECONDS
         );
 
-        // 2. USER_RT:{userId} -> Set<jti> 인덱싱 (TTL 없음)
-        redisTemplate.opsForSet().add(REDIS_USER_RT_PREFIX + user.getId(), jti);
+        // 2. USER_RT:{userId} -> Set<jti> 인덱싱 (자가 관리를 위해 7일 TTL 설정)
+        String userKey = REDIS_USER_RT_PREFIX + user.getId();
+        redisTemplate.opsForSet().add(userKey, jti);
+        redisTemplate.expire(userKey, 7, TimeUnit.DAYS);
 
         return new TokenDto(accessToken, refreshTokenString);
     }
@@ -142,33 +144,17 @@ public class AuthService {
         String newJti = jwtUtil.getJti(newRefreshString);
 
         // 4. 새로운 토큰 정보 저장
+        String userKey = REDIS_USER_RT_PREFIX + userId;
         redisTemplate.opsForValue().set(
                 REDIS_RT_PREFIX + newJti,
                 String.valueOf(userId),
                 jwtProperties.getRefreshExpMs(),
                 TimeUnit.MILLISECONDS
         );
-        redisTemplate.opsForSet().add(REDIS_USER_RT_PREFIX + userId, newJti);
-
-        // 5. Cleanup (Dead JTI 정리)
-        cleanupDeadJtis(userId);
+        redisTemplate.opsForSet().add(userKey, newJti);
+        redisTemplate.expire(userKey, 7, TimeUnit.DAYS); // 세션 인덱스 TTL 갱신
 
         return new TokenDto(newAccess, newRefreshString);
-    }
-
-    private void cleanupDeadJtis(Long userId) {
-        String userKey = REDIS_USER_RT_PREFIX + userId;
-        Set<String> jtis = redisTemplate.opsForSet().members(userKey);
-
-        if (jtis != null) {
-            Set<String> deadJtis = jtis.stream()
-                    .filter(jti -> !Boolean.TRUE.equals(redisTemplate.hasKey(REDIS_RT_PREFIX + jti)))
-                    .collect(Collectors.toSet());
-
-            if (!deadJtis.isEmpty()) {
-                redisTemplate.opsForSet().remove(userKey, deadJtis.toArray());
-            }
-        }
     }
 
     /**

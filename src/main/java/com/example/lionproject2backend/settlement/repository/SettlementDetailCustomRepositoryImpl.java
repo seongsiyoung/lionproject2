@@ -31,10 +31,9 @@ public class SettlementDetailCustomRepositoryImpl implements SettlementDetailCus
                 .join(tutorial.mentor, mentor).fetchJoin()
                 .where(
                         settlementDetail.settlement.isNull(),
-                        payment.paidAt.goe(startAt),
-                        payment.paidAt.lt(endAt)
+                        settlementDetail.occurredAt.goe(startAt),
+                        settlementDetail.occurredAt.lt(endAt)
                 )
                 .fetch();
     }
 }
-

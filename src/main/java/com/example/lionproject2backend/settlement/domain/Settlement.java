@@ -5,8 +5,6 @@ import com.example.lionproject2backend.mentor.domain.Mentor;
 import com.example.lionproject2backend.settlement.util.YearMonthAttributeConverter;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -39,22 +37,33 @@ public class Settlement extends BaseEntity {
     @Convert(converter = YearMonthAttributeConverter.class)
     private YearMonth settlementPeriod;
 
+    /** PAYMENT 원장 결제금액 합계 */
+    @Column(name = "total_payment_amount", nullable = false)
+    private int totalPaymentAmount;
 
-    @Column(name = "total_amount", nullable = false)
-    private int totalAmount;
-
-
+    /** 수수료 순합산  */
     @Column(name = "platform_fee", nullable = false)
     private int platformFee;
 
+    /** 순정산액: PAYMENT + REFUND 모두 반영한 SUM (음수 가능) */
     @Column(name = "settlement_amount", nullable = false)
     private int settlementAmount;
 
+    /** REFUND 원장 절대값 합 */
     @Column(name = "refund_amount", nullable = false)
-    private Integer refundAmount;
+    private int refundAmount;
 
-    @Column(name = "final_settlement_amount", nullable = false)
-    private int finalSettlementAmount;
+    /** 이전 누적 미소진 이월액 */
+    @Column(name = "previous_carry_over_amount", nullable = false)
+    private int previousCarryOverAmount;
+
+    /** 실제 지급액 = max(0, settlementAmount - previousCarryOverAmount) */
+    @Column(name = "payable_amount", nullable = false)
+    private int payableAmount;
+
+    /** 다음 달 이월 차감액 = max(0, -(settlementAmount - previousCarryOverAmount)) */
+    @Column(name = "carry_over_amount", nullable = false)
+    private int carryOverAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -63,31 +72,27 @@ public class Settlement extends BaseEntity {
     @Column(name = "settled_at")
     private LocalDateTime settledAt;
 
-
-    /**
-     * 정산 생성
-     * @param mentor 멘토
-     * @param settlementPeriod 정산 기간
-     * @param totalAmount 총 결제 금액
-     */
     public static Settlement create(
             Mentor mentor,
             YearMonth settlementPeriod,
-            int totalAmount,
+            int totalPaymentAmount,
             int platformFee,
             int settlementAmount,
-            int refundAmount
+            int refundAmount,
+            int previousCarryOverAmount,
+            int payableAmount,
+            int carryOverAmount
     ) {
         Settlement settlement = new Settlement();
         settlement.mentor = mentor;
         settlement.settlementPeriod = settlementPeriod;
-        settlement.totalAmount = totalAmount;
+        settlement.totalPaymentAmount = totalPaymentAmount;
         settlement.platformFee = platformFee;
         settlement.settlementAmount = settlementAmount;
-
         settlement.refundAmount = refundAmount;
-        settlement.finalSettlementAmount = settlementAmount - refundAmount;
-
+        settlement.previousCarryOverAmount = previousCarryOverAmount;
+        settlement.payableAmount = payableAmount;
+        settlement.carryOverAmount = carryOverAmount;
         settlement.status = SettlementStatus.PENDING;
         return settlement;
     }
@@ -98,10 +103,5 @@ public class Settlement extends BaseEntity {
         }
         this.status = SettlementStatus.COMPLETED;
         this.settledAt = LocalDateTime.now();
-    }
-
-    public void applyRefund(int refundAmount) {
-        this.refundAmount += refundAmount;
-        this.finalSettlementAmount -= refundAmount;
     }
 }

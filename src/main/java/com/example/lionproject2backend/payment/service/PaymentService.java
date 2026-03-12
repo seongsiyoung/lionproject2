@@ -123,7 +123,7 @@ public class PaymentService {
         Ticket savedTicket = ticketRepository.save(ticket);
 
         int platformFee = payment.getAmount() * PLATFORM_FEE_PERCENT / 100;
-        SettlementDetail settlementDetail = SettlementDetail.create(payment, platformFee );
+        SettlementDetail settlementDetail = SettlementDetail.createPayment(payment, platformFee, payment.getPaidAt());
         settlementDetailRepository.save(settlementDetail);
 
         log.info("결제 검증 및 이용권 생성 완료 - paymentId: {}, ticketId: {}", paymentId, savedTicket.getId());
@@ -251,7 +251,7 @@ public class PaymentService {
 
         invalidateTicket(ticket.getId());
 
-        settlementService.recordRefundAdjustment(payment);
+        settlementService.createRefundSettlementDetail(payment);
         refundSseService.notifyRefundUpdate();
 
         log.info("환불 승인 및 처리 완료 - paymentId: {}, adminUserId: {}, refundAmount: {}",

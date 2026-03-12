@@ -19,11 +19,13 @@ public class SettlementResponse {
     
     @JsonFormat(pattern = "yyyy-MM")
     private YearMonth settlementPeriod;
-    private int totalAmount;
+    private int totalPaymentAmount;
     private int platformFee;
     private int settlementAmount;
     private int refundAmount;
-    private int finalSettlementAmount;
+    private int previousCarryOverAmount;
+    private int payableAmount;
+    private int carryOverAmount;
     private SettlementStatus status;
     private LocalDateTime settledAt;
     private LocalDateTime createdAt;
@@ -34,11 +36,13 @@ public class SettlementResponse {
                 .mentorId(settlement.getMentor().getId())
                 .mentorName(settlement.getMentor().getUser().getNickname())
                 .settlementPeriod(settlement.getSettlementPeriod())
-                .totalAmount(settlement.getTotalAmount())
+                .totalPaymentAmount(settlement.getTotalPaymentAmount())
                 .platformFee(settlement.getPlatformFee())
                 .settlementAmount(settlement.getSettlementAmount())
                 .refundAmount(settlement.getRefundAmount())
-                .finalSettlementAmount(settlement.getFinalSettlementAmount())
+                .previousCarryOverAmount(settlement.getPreviousCarryOverAmount())
+                .payableAmount(settlement.getPayableAmount())
+                .carryOverAmount(settlement.getCarryOverAmount())
                 .status(settlement.getStatus())
                 .settledAt(settlement.getSettledAt())
                 .createdAt(settlement.getCreatedAt())

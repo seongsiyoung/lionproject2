@@ -7,7 +7,10 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.repository.support.JobRepositoryFactoryBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
 
 /**
  * Spring Batch 설정
@@ -31,5 +34,14 @@ public class BatchConfig {
         factory.setMaxVarCharLength(1000);
         factory.afterPropertiesSet();
         return factory.getObject();
+    }
+
+    @Bean
+    public JobLauncher asyncJobLauncher() throws Exception {
+        TaskExecutorJobLauncher jobLauncher = new TaskExecutorJobLauncher();
+        jobLauncher.setJobRepository(jobRepository());
+        jobLauncher.setTaskExecutor(new SimpleAsyncTaskExecutor("batch-async-thread-"));
+        jobLauncher.afterPropertiesSet();
+        return jobLauncher;
     }
 }

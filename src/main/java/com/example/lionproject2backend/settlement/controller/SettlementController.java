@@ -43,8 +43,8 @@ public class SettlementController {
      */
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> createSettlements(
-            @Valid @RequestBody PostSettlementCreateRequest request
-    ) {
+            @Valid @RequestBody PostSettlementCreateRequest request) {
+
         try {
             YearMonth settlementPeriod = request.toYearMonth();
             String settlementPeriodStr = settlementPeriod.format(DateTimeFormatter.ofPattern("yyyy-MM"));

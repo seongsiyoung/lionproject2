@@ -1,11 +1,13 @@
 package com.example.lionproject2backend.settlement.config;
 
 import com.example.lionproject2backend.settlement.domain.Settlement;
+import com.example.lionproject2backend.settlement.domain.SettlementTarget;
 import com.example.lionproject2backend.settlement.dto.SettlementAggregationRow;
 import com.example.lionproject2backend.settlement.repository.SettlementDetailRepository;
-import com.example.lionproject2backend.settlement.service.SettlementCreateTasklet;
+import com.example.lionproject2backend.settlement.repository.SettlementTargetRepository;
 import com.example.lionproject2backend.settlement.service.SettlementItemProcessor;
 import com.example.lionproject2backend.settlement.service.SettlementItemWriter;
+import com.example.lionproject2backend.settlement.service.SettlementSnapshotTasklet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecutionListener;
@@ -22,9 +24,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Sort;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.time.LocalDateTime;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 
 @Configuration
@@ -35,8 +34,8 @@ public class SettlementCreateJobConfig {
 
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;
-    private final SettlementCreateTasklet settlementCreateTasklet;
-    private final SettlementDetailRepository settlementDetailRepository;
+    private final SettlementSnapshotTasklet settlementSnapshotTasklet;
+    private final SettlementTargetRepository settlementTargetRepository;
     private final SettlementItemProcessor settlementItemProcessor;
     private final SettlementItemWriter settlementItemWriter;
 
@@ -44,28 +43,30 @@ public class SettlementCreateJobConfig {
     public Job settlementJob(JobExecutionListener settlementJobListener) {
         return new JobBuilder("settlementJob", jobRepository)
                 .listener(settlementJobListener)
-                // 기존 Tasklet 대신 새로운 Chunk 기반 Step을 사용합니다.
-                .start(settlementChunkStep())
-                // .start(settlementStep()) // 구버전 Tasklet (비활성화됨)
+                // 1단계: 정산 대상 스냅샷 고정 -> 2단계: 고정된 대상 기반 정산 처리
+                .start(settlementSnapshotStep())
+                .next(settlementChunkStep())
                 .build();
     }
 
     /**
-     * 구버전 Tasklet (비활성화됨)
-     * 차후 롤백이나 비교를 위해 남겨둡니다.
+     * Step 1: 대상을 고정하는 스냅샷 단계
      */
     @Bean
-    public Step settlementStep() {
-        return new StepBuilder("settlementStep", jobRepository)
-                .tasklet(settlementCreateTasklet, transactionManager)
+    public Step settlementSnapshotStep() {
+        return new StepBuilder("settlementSnapshotStep", jobRepository)
+                .tasklet(settlementSnapshotTasklet, transactionManager)
                 .build();
     }
 
+    /**
+     * Step 2: 고정된 대상을 읽어 처리하는 청크 단계
+     */
     @Bean
     public Step settlementChunkStep() {
         return new StepBuilder("settlementChunkStep", jobRepository)
-                .<SettlementAggregationRow, Settlement>chunk(CHUNK_SIZE, transactionManager)
-                .reader(settlementAggregationReader(null))
+                .<SettlementTarget, Settlement>chunk(CHUNK_SIZE, transactionManager)
+                .reader(settlementTargetReader(null))
                 .processor(settlementItemProcessor)
                 .writer(settlementItemWriter)
                 .build();
@@ -73,20 +74,16 @@ public class SettlementCreateJobConfig {
 
     @Bean
     @StepScope
-    public RepositoryItemReader<SettlementAggregationRow> settlementAggregationReader(
-            @Value("#{jobParameters['settlementPeriod']}") String settlementPeriodStr) {
+    public RepositoryItemReader<SettlementTarget> settlementTargetReader(
+            @Value("#{stepExecution.jobExecution.jobInstance.id}") Long jobInstanceId) {
 
-        YearMonth period = YearMonth.parse(settlementPeriodStr, DateTimeFormatter.ofPattern("yyyy-MM"));
-        LocalDateTime startAt = period.atDay(1).atStartOfDay();
-        LocalDateTime endAt = period.plusMonths(1).atDay(1).atStartOfDay();
-
-        return new RepositoryItemReaderBuilder<SettlementAggregationRow>()
-                .name("settlementAggregationReader")
-                .repository(settlementDetailRepository)
-                .methodName("findSettlementAggregationByPeriod")
-                .arguments(startAt, endAt) // Pageable은 내장 빌더가 자동 주입
-                .pageSize(CHUNK_SIZE)
-                .sorts(Collections.singletonMap("payment.tutorial.mentor.id", Sort.Direction.ASC))
+        return new RepositoryItemReaderBuilder<SettlementTarget>()
+                .name("settlementTargetReader")
+                .repository(settlementTargetRepository)
+                .methodName("findReadyTargetsByJobInstanceId")
+                .arguments(jobInstanceId)
+                .pageSize(5000) // 스냅샷 테이블에서도 상태 변경(READY -> DONE)에 의한 시프트를 방지하기 위해 넉넉하게 설정
+                .sorts(Collections.singletonMap("id", Sort.Direction.ASC))
                 .build();
     }
 }

@@ -41,6 +41,26 @@ public interface SettlementDetailRepository extends JpaRepository<SettlementDeta
                    "JOIN sd.payment p " +
                    "JOIN p.tutorial t " +
                    "JOIN t.mentor m " +
+                   "WHERE m.id = :mentorId " +
+                   "AND sd.settlement IS NULL " +
+                   "AND sd.occurredAt >= :startAt " +
+                   "AND sd.occurredAt < :endAt " +
+                   "GROUP BY m.id")
+    Optional<SettlementAggregationRow> findSettlementAggregationByMentorAndPeriod(
+            @Param("mentorId") Long mentorId,
+            @Param("startAt") LocalDateTime startAt,
+            @Param("endAt") LocalDateTime endAt);
+
+    @Query(value = "SELECT new com.example.lionproject2backend.settlement.dto.SettlementAggregationRow(" +
+                   "m.id, " +
+                   "SUM(CASE WHEN sd.type = 'PAYMENT' THEN sd.paymentAmount ELSE 0 END), " +
+                   "SUM(CASE WHEN sd.type = 'REFUND' THEN ABS(sd.paymentAmount) ELSE 0 END), " +
+                   "SUM(sd.platformFee), " +
+                   "SUM(sd.settlementAmount)) " +
+                   "FROM SettlementDetail sd " +
+                   "JOIN sd.payment p " +
+                   "JOIN p.tutorial t " +
+                   "JOIN t.mentor m " +
                    "WHERE sd.settlement IS NULL " +
                    "AND sd.occurredAt >= :startAt " +
                    "AND sd.occurredAt < :endAt " +

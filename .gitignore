@@ -49,6 +49,14 @@ Dockerfile.local
 *.pem
 *.key
 
+### Codex local hook state ###
+.codex-state/
+
+### Local agent files ###
+.codex/
+AGENTS.md
+docs/
+
 ### Generated sources ###
 src/main/generated/*
 

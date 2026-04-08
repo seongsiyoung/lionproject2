@@ -19,13 +19,17 @@ public interface SettlementDetailRepository extends JpaRepository<SettlementDeta
 
     @Modifying(clearAutomatically = true)
     @Query(value = "UPDATE settlement_details sd " +
-                   "INNER JOIN payments p ON sd.payment_id = p.id " +
-                   "INNER JOIN tutorials t ON p.tutorial_id = t.id " +
                    "SET sd.settlement_id = :settlementId " +
-                   "WHERE t.mentor_id = :mentorId " +
-                   "AND sd.occurred_at >= :startAt " +
+                   "WHERE sd.occurred_at >= :startAt " +
                    "AND sd.occurred_at < :endAt " +
-                   "AND sd.settlement_id IS NULL", nativeQuery = true)
+                   "AND sd.settlement_id IS NULL " +
+                   "AND EXISTS ( " +
+                   "    SELECT 1 " +
+                   "    FROM payments p " +
+                   "    INNER JOIN tutorials t ON p.tutorial_id = t.id " +
+                   "    WHERE p.id = sd.payment_id " +
+                   "    AND t.mentor_id = :mentorId " +
+                   ")", nativeQuery = true)
     int bulkUpdateSettlementId(@Param("settlementId") Long settlementId,
                                @Param("mentorId") Long mentorId,
                                @Param("startAt") LocalDateTime startAt,
@@ -48,6 +52,27 @@ public interface SettlementDetailRepository extends JpaRepository<SettlementDeta
                    "GROUP BY m.id")
     Optional<SettlementAggregationRow> findSettlementAggregationByMentorAndPeriod(
             @Param("mentorId") Long mentorId,
+            @Param("startAt") LocalDateTime startAt,
+            @Param("endAt") LocalDateTime endAt);
+
+    @Query(value = "SELECT new com.example.lionproject2backend.settlement.dto.SettlementAggregationRow(" +
+                   "m.id, " +
+                   "SUM(CASE WHEN sd.type = 'PAYMENT' THEN sd.paymentAmount ELSE 0 END), " +
+                   "SUM(CASE WHEN sd.type = 'REFUND' THEN ABS(sd.paymentAmount) ELSE 0 END), " +
+                   "SUM(sd.platformFee), " +
+                   "SUM(sd.settlementAmount)) " +
+                   "FROM SettlementDetail sd " +
+                   "JOIN sd.payment p " +
+                   "JOIN p.tutorial t " +
+                   "JOIN t.mentor m " +
+                   "WHERE m.id = :mentorId " +
+                   "AND (sd.settlement.id = :settlementId OR sd.settlement IS NULL) " +
+                   "AND sd.occurredAt >= :startAt " +
+                   "AND sd.occurredAt < :endAt " +
+                   "GROUP BY m.id")
+    Optional<SettlementAggregationRow> findSettlementAggregationForRecalculation(
+            @Param("mentorId") Long mentorId,
+            @Param("settlementId") Long settlementId,
             @Param("startAt") LocalDateTime startAt,
             @Param("endAt") LocalDateTime endAt);
 

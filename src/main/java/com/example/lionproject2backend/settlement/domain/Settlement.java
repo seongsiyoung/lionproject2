@@ -104,4 +104,25 @@ public class Settlement extends BaseEntity {
         this.status = SettlementStatus.COMPLETED;
         this.settledAt = LocalDateTime.now();
     }
+
+    public void recalculate(
+            int totalPaymentAmount,
+            int platformFee,
+            int settlementAmount,
+            int refundAmount,
+            int previousCarryOverAmount,
+            int payableAmount,
+            int carryOverAmount
+    ) {
+        if (this.status == SettlementStatus.COMPLETED) {
+            throw new IllegalStateException("지급 완료된 정산은 재계산할 수 없습니다.");
+        }
+        this.totalPaymentAmount = totalPaymentAmount;
+        this.platformFee = platformFee;
+        this.settlementAmount = settlementAmount;
+        this.refundAmount = refundAmount;
+        this.previousCarryOverAmount = previousCarryOverAmount;
+        this.payableAmount = payableAmount;
+        this.carryOverAmount = carryOverAmount;
+    }
 }

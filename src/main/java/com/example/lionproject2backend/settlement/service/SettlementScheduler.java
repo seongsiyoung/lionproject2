@@ -41,7 +41,7 @@ public class SettlementScheduler {
 
             JobParameters jobParameters = new JobParametersBuilder()
                     .addString("settlementPeriod", settlementPeriodStr)
-                    .addLong("timestamp", System.currentTimeMillis())
+                    .addLong("run.id", System.currentTimeMillis())
                     .toJobParameters();
 
             jobLauncher.run(settlementJob, jobParameters);

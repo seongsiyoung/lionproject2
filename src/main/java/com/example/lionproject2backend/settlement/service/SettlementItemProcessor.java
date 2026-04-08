@@ -5,8 +5,10 @@ import com.example.lionproject2backend.mentor.repository.MentorRepository;
 import com.example.lionproject2backend.settlement.domain.Settlement;
 import com.example.lionproject2backend.settlement.domain.SettlementTarget;
 import com.example.lionproject2backend.settlement.dto.SettlementAggregationRow;
+import com.example.lionproject2backend.settlement.exception.SettlementTargetSkippableException;
 import com.example.lionproject2backend.settlement.repository.SettlementDetailRepository;
 import com.example.lionproject2backend.settlement.repository.SettlementRepository;
+import com.example.lionproject2backend.settlement.repository.SettlementTargetRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -30,12 +32,19 @@ public class SettlementItemProcessor implements ItemProcessor<SettlementTarget, 
     private final MentorRepository mentorRepository;
     private final SettlementRepository settlementRepository;
     private final SettlementDetailRepository settlementDetailRepository;
+    private final SettlementTargetRepository settlementTargetRepository;
 
     @Value("#{jobParameters['settlementPeriod']}")
     private String settlementPeriodStr;
 
     @Override
     public Settlement process(SettlementTarget target) {
+        if (!target.isProcessable()) {
+            return null;
+        }
+
+        target.markAsProcessing();
+
         YearMonth settlementPeriod = YearMonth.parse(settlementPeriodStr, DateTimeFormatter.ofPattern("yyyy-MM"));
         LocalDateTime startAt = settlementPeriod.atDay(1).atStartOfDay();
         LocalDateTime endAt = settlementPeriod.plusMonths(1).atDay(1).atStartOfDay();
@@ -45,12 +54,20 @@ public class SettlementItemProcessor implements ItemProcessor<SettlementTarget, 
                 .findSettlementAggregationByMentorAndPeriod(target.getMentorId(), startAt, endAt)
                 .orElse(null);
 
-        if (row == null || row.getSettlementAmount() == null) {
-            return null; // 정산할 데이터가 없으면 스킵
+        if (row == null) {
+            target.markAsSkipped();
+            settlementTargetRepository.save(target);
+            return null;
         }
 
+        validateAggregationRow(target, row);
+
         // 2. 멘토 정보 및 이월액 계산
-        Mentor mentor = mentorRepository.getReferenceById(target.getMentorId());
+        Mentor mentor = mentorRepository.findById(target.getMentorId())
+                .orElseThrow(() -> new SettlementTargetSkippableException(
+                        target,
+                        "정산 대상 멘토를 찾을 수 없습니다. mentorId=" + target.getMentorId()
+                ));
         int previousCarryOver = getOutstandingCarryOver(mentor, settlementPeriod);
 
         long adjustedNet = row.getSettlementAmount() - previousCarryOver;
@@ -76,5 +93,27 @@ public class SettlementItemProcessor implements ItemProcessor<SettlementTarget, 
                 .findByMentorAndSettlementPeriod(mentor, previousPeriod)
                 .map(Settlement::getCarryOverAmount)
                 .orElse(0);
+    }
+
+    private void validateAggregationRow(SettlementTarget target, SettlementAggregationRow row) {
+        if (row.getTotalPaymentAmount() == null ||
+                row.getRefundAmount() == null ||
+                row.getPlatformFee() == null ||
+                row.getSettlementAmount() == null ||
+                row.getTotalPaymentAmount() < 0 ||
+                row.getRefundAmount() < 0 ||
+                !isIntRange(row.getTotalPaymentAmount()) ||
+                !isIntRange(row.getRefundAmount()) ||
+                !isIntRange(row.getPlatformFee()) ||
+                !isIntRange(row.getSettlementAmount())) {
+            throw new SettlementTargetSkippableException(
+                    target,
+                    "정산 집계 결과가 유효하지 않습니다. mentorId=" + target.getMentorId()
+            );
+        }
+    }
+
+    private boolean isIntRange(Long value) {
+        return value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE;
     }
 }

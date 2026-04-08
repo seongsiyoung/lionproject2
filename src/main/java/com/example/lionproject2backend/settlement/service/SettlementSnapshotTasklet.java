@@ -32,13 +32,13 @@ public class SettlementSnapshotTasklet implements Tasklet {
         
         log.info("정산 대상 스냅샷 생성 시작 - settlementPeriod: {}, jobInstanceId: {}", settlementPeriod, jobInstanceId);
 
-        // 1. 기존 데이터 정리 (해당 정산 기간 기준) - 재시도 시 중복 방지
-        settlementTargetRepository.deleteBySettlementPeriod(settlementPeriod);
-
-        // 2. 현재 정산이 필요한 멘토 ID들을 조회하여 스냅샷 테이블에 삽입
         YearMonth period = YearMonth.parse(settlementPeriod, DateTimeFormatter.ofPattern("yyyy-MM"));
         LocalDateTime startAt = period.atDay(1).atStartOfDay();
         LocalDateTime endAt = period.plusMonths(1).atDay(1).atStartOfDay();
+
+        int resetCount = settlementTargetRepository.resetRetryableTargets(settlementPeriod, jobInstanceId);
+        int reopenedCount = settlementTargetRepository.reopenPendingDoneTargets(settlementPeriod, jobInstanceId, startAt, endAt);
+        int failedCount = settlementTargetRepository.markCompletedDoneTargetsFailed(settlementPeriod, jobInstanceId, startAt, endAt);
 
         String sql = "INSERT INTO settlement_targets (mentor_id, settlement_period, job_instance_id, status, created_at, updated_at) " +
                      "SELECT DISTINCT t.mentor_id, ?, ?, 'READY', NOW(), NOW() " +
@@ -47,10 +47,22 @@ public class SettlementSnapshotTasklet implements Tasklet {
                      "JOIN tutorials t ON p.tutorial_id = t.id " +
                      "WHERE sd.settlement_id IS NULL " +
                      "AND sd.occurred_at >= ? " +
-                     "AND sd.occurred_at < ?";
+                     "AND sd.occurred_at < ? " +
+                     "AND NOT EXISTS ( " +
+                     "    SELECT 1 " +
+                     "    FROM settlement_targets st " +
+                     "    WHERE st.mentor_id = t.mentor_id " +
+                     "    AND st.settlement_period = ? " +
+                     ")";
 
-        int count = jdbcTemplate.update(sql, settlementPeriod, jobInstanceId, startAt, endAt);
-        log.info("정산 대상 스냅샷 생성 완료 - 대상 멘토 수: {}명", count);
+        int count = jdbcTemplate.update(sql, settlementPeriod, jobInstanceId, startAt, endAt, settlementPeriod);
+        log.info(
+                "정산 대상 스냅샷 생성 완료 - 복구 대상: {}건, 재처리 대상: {}건, 지급완료 충돌: {}건, 신규 대상 멘토 수: {}명",
+                resetCount,
+                reopenedCount,
+                failedCount,
+                count
+        );
 
         return RepeatStatus.FINISHED;
     }

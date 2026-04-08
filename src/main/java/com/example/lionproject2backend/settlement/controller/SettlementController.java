@@ -49,10 +49,9 @@ public class SettlementController {
             YearMonth settlementPeriod = request.toYearMonth();
             String settlementPeriodStr = settlementPeriod.format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
-            // JobParameters 생성 (중복 실행 방지를 위해 timestamp 추가)
             JobParameters jobParameters = new JobParametersBuilder()
                     .addString("settlementPeriod", settlementPeriodStr)
-                    .addLong("timestamp", System.currentTimeMillis())
+                    .addLong("run.id", System.currentTimeMillis())
                     .toJobParameters();
 
             // Job 실행

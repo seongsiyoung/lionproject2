@@ -60,7 +60,6 @@ docs/
 ### Generated sources ###
 src/main/generated/*
 
-/src/test/
 **/claude.md
 .claude
 

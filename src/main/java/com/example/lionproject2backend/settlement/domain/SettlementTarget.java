@@ -47,7 +47,7 @@ public class SettlementTarget {
     private LocalDateTime updatedAt;
 
     public enum SettlementTargetStatus {
-        READY, PROCESSING, DONE, FAILED
+        READY, PROCESSING, DONE, FAILED, SKIPPED
     }
 
     private SettlementTarget(Long mentorId, String settlementPeriod, Long jobInstanceId) {
@@ -70,5 +70,17 @@ public class SettlementTarget {
 
     public void markAsProcessing() {
         this.status = SettlementTargetStatus.PROCESSING;
+    }
+
+    public void markAsSkipped() {
+        this.status = SettlementTargetStatus.SKIPPED;
+    }
+
+    public void resetToReady() {
+        this.status = SettlementTargetStatus.READY;
+    }
+
+    public boolean isProcessable() {
+        return this.status == SettlementTargetStatus.READY;
     }
 }

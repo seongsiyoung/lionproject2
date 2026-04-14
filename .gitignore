@@ -56,6 +56,8 @@ Dockerfile.local
 .codex/
 AGENTS.md
 docs/
+.agents/
+skills-lock.json
 
 ### Generated sources ###
 src/main/generated/*
@@ -67,3 +69,6 @@ src/main/generated/*
 
 ### Performance Test ###
 scripts/performance-test/
+
+src/test/java/com/example/lionproject2backend/PasswordTest.java
+

@@ -11,6 +11,7 @@ SET CHARACTER SET utf8mb4;
 DROP TABLE IF EXISTS `answers`;
 DROP TABLE IF EXISTS `questions`;
 DROP TABLE IF EXISTS `reviews`;
+DROP TABLE IF EXISTS `lesson_files`;
 DROP TABLE IF EXISTS `lessons`;
 DROP TABLE IF EXISTS `tickets`;
 DROP TABLE IF EXISTS `settlement_adjustments`;
@@ -240,7 +241,38 @@ CREATE TABLE `lessons` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
--- 12. reviews (리뷰)
+-- 12. lesson_files (수업 파일)
+-- ============================================================
+CREATE TABLE `lesson_files` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `lesson_id` BIGINT NOT NULL,
+  `uploader_id` BIGINT NOT NULL,
+  `type` VARCHAR(20) NOT NULL COMMENT 'MATERIAL, ASSIGNMENT',
+  `status` VARCHAR(20) NOT NULL COMMENT 'PENDING, VALIDATED, FAILED, EXPIRED, DELETED',
+  `original_file_name` VARCHAR(255) NOT NULL,
+  `content_type` VARCHAR(100) NOT NULL,
+  `size_bytes` BIGINT NOT NULL,
+  `checksum_sha256` VARCHAR(64) NOT NULL,
+  `s3_key` VARCHAR(500) NOT NULL,
+  `validated_s3_key` VARCHAR(500),
+  `failure_code` VARCHAR(50),
+  `uploaded_at` TIMESTAMP NULL,
+  `validated_at` TIMESTAMP NULL,
+  `deleted_at` TIMESTAMP NULL,
+  `expires_at` TIMESTAMP NOT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY `uk_lesson_files_s3_key` (`s3_key`),
+  INDEX `idx_lesson_files_lesson_status` (`lesson_id`, `status`),
+  INDEX `idx_lesson_files_uploader` (`uploader_id`),
+  INDEX `idx_lesson_files_expires` (`status`, `expires_at`),
+  CONSTRAINT `fk_lesson_file_lesson` FOREIGN KEY (`lesson_id`) REFERENCES `lessons` (`id`),
+  CONSTRAINT `fk_lesson_file_uploader` FOREIGN KEY (`uploader_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 13. reviews (리뷰)
 -- ============================================================
 CREATE TABLE `reviews` (
   `id` BIGINT PRIMARY KEY AUTO_INCREMENT,

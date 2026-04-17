@@ -30,6 +30,34 @@ redisson:
   threads: ${REDISSON_THREADS:16}
   netty-threads: ${REDISSON_NETTY_THREADS:32}
 
+lesson-file:
+  upload:
+    max-size-bytes: ${LESSON_FILE_MAX_SIZE_BYTES:52428800}
+    presigned-expire-minutes: ${LESSON_FILE_PRESIGNED_EXPIRE_MINUTES:10}
+    download-expire-minutes: ${LESSON_FILE_DOWNLOAD_EXPIRE_MINUTES:10}
+    max-material-count: ${LESSON_FILE_MAX_MATERIAL_COUNT:10}
+    max-assignment-count: ${LESSON_FILE_MAX_ASSIGNMENT_COUNT:10}
+    pending-expire-scan-delay-ms: ${LESSON_FILE_PENDING_EXPIRE_SCAN_DELAY_MS:600000}
+    allowed-content-types:
+      - application/pdf
+      - image/png
+      - image/jpeg
+    allowed-extensions:
+      - pdf
+      - png
+      - jpg
+      - jpeg
+  s3:
+    bucket: ${LESSON_FILE_S3_BUCKET:}
+    region: ${AWS_REGION:ap-northeast-2}
+    pending-prefix: ${LESSON_FILE_S3_PENDING_PREFIX:pending}
+    validated-prefix: ${LESSON_FILE_S3_VALIDATED_PREFIX:validated}
+    failed-prefix: ${LESSON_FILE_S3_FAILED_PREFIX:failed}
+  cloudfront:
+    domain: ${LESSON_FILE_CLOUDFRONT_DOMAIN:}
+    key-pair-id: ${LESSON_FILE_CLOUDFRONT_KEY_PAIR_ID:}
+    private-key-parameter-name: ${LESSON_FILE_CLOUDFRONT_PRIVATE_KEY_PARAMETER:}
+
 portone:
   store-id: ${PORTONE_STORE_ID}
   channel-key: ${PORTONE_CHANNEL_KEY}

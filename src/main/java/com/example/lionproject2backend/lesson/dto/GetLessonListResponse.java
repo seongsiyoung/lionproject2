@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
  * Get /api/lessons/my - 내가 신청한 수업 목록 (멘티)
  *
  * Query Parameter
- * status: PENDING, APPROVED, IN_PROGRESS, COMPLETED, CANCELLED
+ * status: REQUESTED, CONFIRMED, REJECTED, SCHEDULED, COMPLETED, CANCELLED
  */
 @Getter
 @Builder(access = AccessLevel.PRIVATE)

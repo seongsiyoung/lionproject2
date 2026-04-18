@@ -24,7 +24,7 @@ public class LessonFileAwsConfig {
     @Bean
     @ConditionalOnExpression("'${lesson-file.s3.bucket:}' != ''")
     public AwsCredentialsProvider awsCredentialsProvider() {
-        return DefaultCredentialsProvider.create();
+        return DefaultCredentialsProvider.builder().build();
     }
 
     @Bean

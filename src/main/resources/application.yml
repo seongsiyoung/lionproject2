@@ -56,7 +56,7 @@ lesson-file:
   cloudfront:
     domain: ${LESSON_FILE_CLOUDFRONT_DOMAIN:}
     key-pair-id: ${LESSON_FILE_CLOUDFRONT_KEY_PAIR_ID:}
-    private-key-parameter-name: ${LESSON_FILE_CLOUDFRONT_PRIVATE_KEY_PARAMETER:}
+    private-key-path: ${LESSON_FILE_CLOUDFRONT_PRIVATE_KEY_PATH:}
 
 portone:
   store-id: ${PORTONE_STORE_ID}

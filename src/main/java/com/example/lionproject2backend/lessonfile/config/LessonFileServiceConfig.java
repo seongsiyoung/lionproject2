@@ -9,6 +9,7 @@ import com.example.lionproject2backend.lessonfile.infra.LessonFileStorageClient;
 import com.example.lionproject2backend.lessonfile.infra.PresignedPostData;
 import com.example.lionproject2backend.lessonfile.infra.S3ObjectMetadata;
 import java.time.Clock;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +25,7 @@ public class LessonFileServiceConfig {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnExpression("'${lesson-file.s3.bucket:}' == ''")
     public LessonFileStorageClient unavailableLessonFileStorageClient() {
         return new LessonFileStorageClient() {
             @Override
@@ -45,6 +47,9 @@ public class LessonFileServiceConfig {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnExpression("'${lesson-file.cloudfront.domain:}' == '' "
+            + "|| '${lesson-file.cloudfront.key-pair-id:}' == '' "
+            + "|| '${lesson-file.cloudfront.private-key-path:}' == ''")
     public CloudFrontSignedUrlProvider unavailableCloudFrontSignedUrlProvider() {
         return new CloudFrontSignedUrlProvider() {
             @Override

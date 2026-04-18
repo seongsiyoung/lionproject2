@@ -24,7 +24,7 @@ public class LessonFileProperties {
         private int downloadExpireMinutes = 10;
         private int maxMaterialCount = 10;
         private int maxAssignmentCount = 10;
-        private long pendingExpireScanDelayMs = 600_000L;
+        private long pendingExpireScanDelayMs = 86_400_000L;
         private List<String> allowedContentTypes = List.of(
                 "application/pdf",
                 "image/png",
@@ -53,6 +53,6 @@ public class LessonFileProperties {
     public static class CloudFront {
         private String domain;
         private String keyPairId;
-        private String privateKeyParameterName;
+        private String privateKeyPath;
     }
 }

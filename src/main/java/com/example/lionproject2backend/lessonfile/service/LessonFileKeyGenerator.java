@@ -12,11 +12,10 @@ public class LessonFileKeyGenerator {
 
     private final LessonFileProperties properties;
 
-    public String pendingKey(Long lessonId, Long fileId) {
-        return "%s/lessons/%d/files/%d/%s".formatted(
+    public String pendingKey(Long lessonId) {
+        return "%s/lessons/%d/files/%s".formatted(
                 properties.getS3().getPendingPrefix(),
                 lessonId,
-                fileId,
                 UUID.randomUUID()
         );
     }

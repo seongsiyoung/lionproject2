@@ -91,6 +91,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/user/**",
                                 "/api/lessons/**",
+                                "/api/lesson-files/**",
                                 "/api/payments/**",
                                 "/api/settlements/**"
                         ).authenticated()

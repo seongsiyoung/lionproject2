@@ -62,6 +62,7 @@ public enum ErrorCode {
 	LESSON_FILE_TYPE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "LESSON_FILE_007", "허용되지 않는 파일 형식입니다."),
 	LESSON_FILE_VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "LESSON_FILE_008", "업로드된 파일을 검증하지 못했습니다."),
 	LESSON_FILE_STORAGE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "LESSON_FILE_009", "파일 저장소 처리 중 오류가 발생했습니다."),
+	LESSON_FILE_ACCESS_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "LESSON_FILE_010", "현재 수업 상태에서는 파일에 접근할 수 없습니다."),
 
     // ============ QNA ============
     QUESTION_NOT_FOUND(HttpStatus.NOT_FOUND, "QNA_001", "질문을 찾을 수 없습니다."),

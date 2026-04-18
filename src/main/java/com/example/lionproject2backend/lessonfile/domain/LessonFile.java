@@ -113,6 +113,19 @@ public class LessonFile extends BaseEntity {
         this.failureCode = null;
     }
 
+    public boolean isValidatedBy(Long userId) {
+        return this.status == LessonFileStatus.VALIDATED
+                && this.uploader.getId().equals(userId);
+    }
+
+    public boolean isUploadedBy(Long userId) {
+        return this.uploader.getId().equals(userId);
+    }
+
+    public void validateConfirmableStatus() {
+        validatePendingStatus();
+    }
+
     public void fail(LessonFileFailureCode failureCode) {
         validatePendingStatus();
         this.status = LessonFileStatus.FAILED;

@@ -18,7 +18,7 @@ public class LessonFileAccessPolicy {
     );
 
     public void validateUpload(Lesson lesson, Long userId, LessonFileType type) {
-        validateFileAccessibleStatus(lesson);
+        validateFileAccessibleStatus(lesson, ErrorCode.LESSON_FILE_UPLOAD_NOT_ALLOWED);
         validateAccess(lesson, userId);
 
         if (type == LessonFileType.MATERIAL && !lesson.isMentor(userId)) {
@@ -31,16 +31,16 @@ public class LessonFileAccessPolicy {
     }
 
     public void validateAccess(Lesson lesson, Long userId) {
-        validateFileAccessibleStatus(lesson);
+        validateFileAccessibleStatus(lesson, ErrorCode.LESSON_FILE_ACCESS_NOT_ALLOWED);
 
         if (!lesson.isParticipant(userId)) {
             throw new CustomException(ErrorCode.LESSON_FILE_FORBIDDEN);
         }
     }
 
-    private void validateFileAccessibleStatus(Lesson lesson) {
+    private void validateFileAccessibleStatus(Lesson lesson, ErrorCode errorCode) {
         if (!FILE_ACCESSIBLE_STATUSES.contains(lesson.getStatus())) {
-            throw new CustomException(ErrorCode.LESSON_FILE_UPLOAD_NOT_ALLOWED);
+            throw new CustomException(errorCode);
         }
     }
 }

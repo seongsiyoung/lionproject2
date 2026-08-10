@@ -42,6 +42,7 @@ out/
 ### Local config ###
 application-local.yml
 Dockerfile.local
+front/
 
 ### Secrets ###
 .env
@@ -71,4 +72,3 @@ src/main/generated/*
 scripts/performance-test/
 
 src/test/java/com/example/lionproject2backend/PasswordTest.java
-

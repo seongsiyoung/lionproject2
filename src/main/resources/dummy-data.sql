@@ -126,7 +126,7 @@ VALUES
 -- =====================================================
 INSERT INTO tutorials (mentor_id, title, description, price, duration, rating, status, created_at, updated_at)
 VALUES (1, 'Spring Boot 기초부터 실전까지', 'Spring Boot를 처음 배우는 분들을 위한 기초 강의입니다. RESTful API 개발, JPA, Security 등을 다룹니다.',
-        50000, 60, 0.00, 'ACTIVE', NOW(), NOW()),
+        250, 60, 0.00, 'ACTIVE', NOW(), NOW()),
        (1, 'Java 심화 프로그래밍', 'Java의 고급 기능들을 학습하는 강의입니다. 멀티스레딩, 제네릭, 람다 등을 다룹니다.', 60000, 90, 0.00, 'ACTIVE',
         NOW(), NOW()),
        (1, 'Spring Security 완벽 가이드', 'Spring Security를 활용한 인증/인가 시스템 구축 방법을 배웁니다.', 65000, 90, 0.00, 'ACTIVE',

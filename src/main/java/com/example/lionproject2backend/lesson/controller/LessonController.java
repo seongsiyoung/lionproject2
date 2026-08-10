@@ -38,7 +38,7 @@ public class LessonController {
     /**
      * 내가 신청한 수업 목록 조회 (멘티) - 인증 필요
      * Get /api/lessons/my(?status=REQUESTED)
-     * status - REQUESTED, CONFIRMED, REJECTED, IN_PROGRESS, COMPLETED, CANCELLED
+     * status - REQUESTED, CONFIRMED, REJECTED, SCHEDULED, COMPLETED, CANCELLED
      */
     @GetMapping("/lessons/my")
     public ResponseEntity<ApiResponse<GetLessonListResponse>> getMyLessons(

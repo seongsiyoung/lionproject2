@@ -52,6 +52,18 @@ public enum ErrorCode {
 	LESSON_INVALID_STATUS(HttpStatus.BAD_REQUEST, "LESSON_003", "수업 상태가 올바르지 않습니다."),
 	LESSON_PAST_DATE(HttpStatus.BAD_REQUEST, "LESSON_004", "과거 날짜로는 수업을 신청할 수 없습니다."),
 
+	// LESSON FILE
+	LESSON_FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "LESSON_FILE_001", "파일을 찾을 수 없습니다."),
+	LESSON_FILE_FORBIDDEN(HttpStatus.FORBIDDEN, "LESSON_FILE_002", "파일에 접근할 권한이 없습니다."),
+	LESSON_FILE_INVALID_STATUS(HttpStatus.BAD_REQUEST, "LESSON_FILE_003", "파일 상태가 올바르지 않습니다."),
+	LESSON_FILE_UPLOAD_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "LESSON_FILE_004", "현재 수업 상태에서는 파일을 업로드할 수 없습니다."),
+	LESSON_FILE_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "LESSON_FILE_005", "업로드 가능한 파일 개수를 초과했습니다."),
+	LESSON_FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "LESSON_FILE_006", "파일 크기 제한을 초과했습니다."),
+	LESSON_FILE_TYPE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "LESSON_FILE_007", "허용되지 않는 파일 형식입니다."),
+	LESSON_FILE_VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "LESSON_FILE_008", "업로드된 파일을 검증하지 못했습니다."),
+	LESSON_FILE_STORAGE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "LESSON_FILE_009", "파일 저장소 처리 중 오류가 발생했습니다."),
+	LESSON_FILE_ACCESS_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "LESSON_FILE_010", "현재 수업 상태에서는 파일에 접근할 수 없습니다."),
+
     // ============ QNA ============
     QUESTION_NOT_FOUND(HttpStatus.NOT_FOUND, "QNA_001", "질문을 찾을 수 없습니다."),
     QUESTION_FORBIDDEN(HttpStatus.FORBIDDEN, "QNA_002", "해당 질문에 대한 권한이 없습니다."),
@@ -90,4 +102,3 @@ public enum ErrorCode {
 	private final String code;
 	private final String message;
 }
-

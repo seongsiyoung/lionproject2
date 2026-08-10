@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -21,12 +22,20 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/settlements")
-@RequiredArgsConstructor
 public class SettlementController {
 
     private final SettlementService settlementService;
+    
     private final JobLauncher jobLauncher;
     private final Job settlementJob;
+
+    public SettlementController(SettlementService settlementService,
+                                @Qualifier("asyncJobLauncher") JobLauncher jobLauncher,
+                                Job settlementJob) {
+        this.settlementService = settlementService;
+        this.jobLauncher = jobLauncher;
+        this.settlementJob = settlementJob;
+    }
 
     /**
      * 정산 생성 (Spring Batch Job 실행)
@@ -34,16 +43,15 @@ public class SettlementController {
      */
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> createSettlements(
-            @Valid @RequestBody PostSettlementCreateRequest request
-    ) {
+            @Valid @RequestBody PostSettlementCreateRequest request) {
+
         try {
             YearMonth settlementPeriod = request.toYearMonth();
             String settlementPeriodStr = settlementPeriod.format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
-            // JobParameters 생성 (중복 실행 방지를 위해 timestamp 추가)
             JobParameters jobParameters = new JobParametersBuilder()
                     .addString("settlementPeriod", settlementPeriodStr)
-                    .addLong("timestamp", System.currentTimeMillis())
+                    .addLong("run.id", System.currentTimeMillis())
                     .toJobParameters();
 
             // Job 실행

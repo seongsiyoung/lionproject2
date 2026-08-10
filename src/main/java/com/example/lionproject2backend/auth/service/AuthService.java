@@ -95,7 +95,7 @@ public class AuthService {
     @Transactional
     public void logout(String refreshToken) {
         jwtUtil.validate(refreshToken);
-        jwtUtil.validateType(refreshToken, TokenType.REFRESH); // 타입 검증 추가
+        jwtUtil.validateType(refreshToken, TokenType.REFRESH);
         String jti = jwtUtil.getJti(refreshToken);
         Long userId = jwtUtil.getUserId(refreshToken);
 

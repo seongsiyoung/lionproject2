@@ -9,6 +9,9 @@
     virtual:
       enabled: true
 
+  flyway:
+    enabled: false
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}

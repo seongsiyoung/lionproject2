@@ -7,37 +7,6 @@
 SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;
 
--- 기존 테이블 삭제 (의존성 역순)
-DROP TABLE IF EXISTS `answers`;
-DROP TABLE IF EXISTS `questions`;
-DROP TABLE IF EXISTS `reviews`;
-DROP TABLE IF EXISTS `lesson_files`;
-DROP TABLE IF EXISTS `lessons`;
-DROP TABLE IF EXISTS `tickets`;
-DROP TABLE IF EXISTS `settlement_targets`;
-DROP TABLE IF EXISTS `settlement_details`;
-DROP TABLE IF EXISTS `settlements`;
-DROP TABLE IF EXISTS `payments`;
-DROP TABLE IF EXISTS `tutorial_skills`;
-DROP TABLE IF EXISTS `tutorials`;
-DROP TABLE IF EXISTS `mentor_availability`;
-DROP TABLE IF EXISTS `mentor_skills`;
-DROP TABLE IF EXISTS `mentors`;
-DROP TABLE IF EXISTS `skills`;
-DROP TABLE IF EXISTS `users`;
-
--- Spring Batch 메타데이터 테이블 삭제
-DROP TABLE IF EXISTS `BATCH_STEP_EXECUTION_CONTEXT`;
-DROP TABLE IF EXISTS `BATCH_JOB_EXECUTION_CONTEXT`;
-DROP TABLE IF EXISTS `BATCH_STEP_EXECUTION`;
-DROP TABLE IF EXISTS `BATCH_JOB_EXECUTION_PARAMS`;
-DROP TABLE IF EXISTS `BATCH_JOB_EXECUTION`;
-DROP TABLE IF EXISTS `BATCH_JOB_INSTANCE`;
-DROP TABLE IF EXISTS `BATCH_JOB_SEQ`;
-DROP TABLE IF EXISTS `BATCH_JOB_EXECUTION_SEQ`;
-DROP TABLE IF EXISTS `BATCH_STEP_EXECUTION_SEQ`;
-
--- ============================================================
 -- 1. users (사용자)
 -- ============================================================
 CREATE TABLE `users` (

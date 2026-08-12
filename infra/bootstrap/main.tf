@@ -58,3 +58,11 @@ resource "aws_s3_bucket_public_access_block" "terraform_state" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
+
+resource "aws_route53_zone" "primary" {
+  name = var.domain_name
+
+  tags = {
+    Name = "${local.name_prefix}-zone"
+  }
+}

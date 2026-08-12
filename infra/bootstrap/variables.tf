@@ -21,3 +21,9 @@ variable "state_bucket_name" {
   description = "Optional globally unique S3 bucket name for Terraform remote state."
   default     = null
 }
+
+variable "domain_name" {
+  type        = string
+  description = "Root domain name for the shared Route 53 hosted zone."
+  default     = "approach.shop"
+}

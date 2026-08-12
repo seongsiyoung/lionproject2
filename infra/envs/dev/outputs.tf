@@ -62,3 +62,61 @@ output "route53_name_servers" {
   description = "Name servers assigned to the Route 53 hosted zone."
   value       = data.aws_route53_zone.primary.name_servers
 }
+
+output "ecr_repository_url" {
+  description = "ECR repository URL for backend Docker images."
+  value       = aws_ecr_repository.backend.repository_url
+}
+
+output "backend_instance_id" {
+  description = "Private EC2 instance ID used by SSM Run Command."
+  value       = aws_instance.backend.id
+}
+
+output "alb_dns_name" {
+  description = "DNS name of the public API ALB."
+  value       = aws_lb.backend.dns_name
+}
+
+output "api_domain_name" {
+  description = "API domain alias record pointing to the ALB."
+  value       = aws_route53_record.api.fqdn
+}
+
+output "rds_endpoint" {
+  description = "RDS MySQL endpoint address."
+  value       = aws_db_instance.mysql.address
+}
+
+output "rds_master_user_secret_arn" {
+  description = "Secrets Manager ARN for the RDS managed master user password."
+  value       = aws_db_instance.mysql.master_user_secret[0].secret_arn
+}
+
+output "redis_endpoint" {
+  description = "ElastiCache Redis endpoint address."
+  value       = aws_elasticache_replication_group.redis.primary_endpoint_address
+}
+
+output "cloudwatch_log_groups" {
+  description = "CloudWatch log groups created for application, Nginx, and deployment logs."
+  value = [
+    aws_cloudwatch_log_group.app.name,
+    aws_cloudwatch_log_group.nginx_access.name,
+    aws_cloudwatch_log_group.nginx_error.name,
+    aws_cloudwatch_log_group.deploy.name
+  ]
+}
+
+output "runtime_parameter_names" {
+  description = "SSM parameter names created for EC2 runtime configuration."
+  value = {
+    aws_region           = aws_ssm_parameter.aws_region.name
+    db_url               = aws_ssm_parameter.db_url.name
+    db_username          = aws_ssm_parameter.db_username.name
+    db_master_secret_arn = aws_ssm_parameter.db_master_secret_arn.name
+    redis_host           = aws_ssm_parameter.redis_host.name
+    redis_port           = aws_ssm_parameter.redis_port.name
+    redis_password       = aws_ssm_parameter.redis_password.name
+  }
+}

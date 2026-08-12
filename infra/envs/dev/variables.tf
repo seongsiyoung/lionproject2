@@ -50,14 +50,20 @@ variable "budget_email" {
   description = "Email address for AWS budget notifications in later resource stages."
 }
 
+variable "budget_limit_usd" {
+  type        = string
+  description = "Monthly budget limit in USD for the dev environment."
+  default     = "10"
+}
+
+variable "db_name" {
+  type        = string
+  description = "Initial MySQL database name."
+  default     = "devsolve"
+}
+
 variable "db_username" {
   type        = string
   description = "RDS master username used in the later database stage."
   default     = "devsolve_admin"
-}
-
-variable "db_password_parameter_name" {
-  type        = string
-  description = "SSM parameter name for the RDS master password."
-  default     = "/devsolve/dev/db/password"
 }

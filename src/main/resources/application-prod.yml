@@ -27,10 +27,15 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:true}
 
   batch:
     jdbc:
       initialize-schema: never
+
+redisson:
+  address: ${REDISSON_ADDRESS:rediss://${spring.data.redis.host}:${spring.data.redis.port}}
 
 portone:
   store-id: ${PORTONE_STORE_ID}

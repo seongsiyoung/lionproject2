@@ -4,6 +4,10 @@ files_domain = "files.approach.shop"
 
 github_repository = "OWNER/REPOSITORY"
 budget_email      = "you@example.com"
+budget_limit_usd  = "10"
+
+db_name     = "devsolve"
+db_username = "devsolve_admin"
 
 # Default when omitted:
 # github_oidc_subjects = ["repo:OWNER/REPOSITORY:environment:dev"]

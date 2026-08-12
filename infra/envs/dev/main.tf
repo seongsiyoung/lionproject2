@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -35,6 +39,26 @@ data "aws_caller_identity" "current" {}
 data "aws_route53_zone" "primary" {
   name         = var.domain_name
   private_zone = false
+}
+
+data "aws_ami" "amazon_linux_2023" {
+  most_recent = true
+  owners      = ["137112412989"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023.*-kernel-6.1-x86_64"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
 }
 
 locals {
@@ -274,7 +298,7 @@ resource "aws_vpc_security_group_ingress_rule" "alb_https" {
 
 resource "aws_vpc_security_group_egress_rule" "alb_to_ec2_http" {
   security_group_id            = aws_security_group.alb.id
-  description                  = "HTTP to private EC2 Nginx"
+  description                  = "HTTP to private EC2 port 80"
   from_port                    = 80
   to_port                      = 80
   ip_protocol                  = "tcp"
@@ -283,7 +307,7 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_ec2_http" {
 
 resource "aws_vpc_security_group_ingress_rule" "ec2_from_alb_http" {
   security_group_id            = aws_security_group.ec2.id
-  description                  = "Nginx from ALB"
+  description                  = "HTTP from ALB to Compose Nginx"
   from_port                    = 80
   to_port                      = 80
   ip_protocol                  = "tcp"
@@ -449,4 +473,380 @@ resource "aws_route53_record" "api_validation" {
 resource "aws_acm_certificate_validation" "api" {
   certificate_arn         = aws_acm_certificate.api.arn
   validation_record_fqdns = [for record in aws_route53_record.api_validation : record.fqdn]
+}
+
+resource "aws_ecr_repository" "backend" {
+  name                 = "${local.name_prefix}-backend"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-backend"
+  }
+}
+
+resource "aws_ecr_lifecycle_policy" "backend" {
+  repository = aws_ecr_repository.backend.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep only the latest 3 images for short-lived dev deployments."
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 3
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/${var.project}/${var.environment}/app"
+  retention_in_days = 3
+}
+
+resource "aws_cloudwatch_log_group" "nginx_access" {
+  name              = "/${var.project}/${var.environment}/nginx/access"
+  retention_in_days = 3
+}
+
+resource "aws_cloudwatch_log_group" "nginx_error" {
+  name              = "/${var.project}/${var.environment}/nginx/error"
+  retention_in_days = 3
+}
+
+resource "aws_cloudwatch_log_group" "deploy" {
+  name              = "/${var.project}/${var.environment}/deploy"
+  retention_in_days = 3
+}
+
+resource "aws_db_subnet_group" "backend" {
+  name       = "${local.name_prefix}-db-subnet-group"
+  subnet_ids = [aws_subnet.private_data_a.id, aws_subnet.private_data_b.id]
+
+  tags = {
+    Name = "${local.name_prefix}-db-subnet-group"
+  }
+}
+
+resource "aws_db_instance" "mysql" {
+  identifier                  = "${local.name_prefix}-mysql"
+  allocated_storage           = 20
+  db_name                     = var.db_name
+  engine                      = "mysql"
+  engine_version              = "8.4"
+  instance_class              = "db.t3.micro"
+  username                    = var.db_username
+  manage_master_user_password = true
+  db_subnet_group_name        = aws_db_subnet_group.backend.name
+  vpc_security_group_ids      = [aws_security_group.rds.id]
+  publicly_accessible         = false
+  skip_final_snapshot         = true
+  deletion_protection         = false
+  backup_retention_period     = 0
+  apply_immediately           = true
+
+  tags = {
+    Name = "${local.name_prefix}-mysql"
+  }
+}
+
+resource "aws_elasticache_subnet_group" "redis" {
+  name       = "${local.name_prefix}-redis-subnet-group"
+  subnet_ids = [aws_subnet.private_data_a.id, aws_subnet.private_data_b.id]
+}
+
+resource "random_password" "redis_auth_token" {
+  length  = 32
+  special = false
+}
+
+resource "aws_elasticache_replication_group" "redis" {
+  replication_group_id       = "${local.name_prefix}-redis"
+  description                = "Redis replication group for ${local.name_prefix}"
+  engine                     = "redis"
+  node_type                  = "cache.t3.micro"
+  num_cache_clusters         = 1
+  port                       = 6379
+  subnet_group_name          = aws_elasticache_subnet_group.redis.name
+  security_group_ids         = [aws_security_group.redis.id]
+  automatic_failover_enabled = false
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
+  auth_token                 = random_password.redis_auth_token.result
+  auth_token_update_strategy = "SET"
+  apply_immediately          = true
+  snapshot_retention_limit   = 0
+
+  tags = {
+    Name = "${local.name_prefix}-redis"
+  }
+}
+
+resource "aws_ssm_parameter" "aws_region" {
+  name  = "/${var.project}/${var.environment}/aws/region"
+  type  = "String"
+  value = var.aws_region
+}
+
+resource "aws_ssm_parameter" "db_url" {
+  name  = "/${var.project}/${var.environment}/db/url"
+  type  = "String"
+  value = "jdbc:mysql://${aws_db_instance.mysql.address}:3306/${var.db_name}?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true"
+}
+
+resource "aws_ssm_parameter" "db_username" {
+  name  = "/${var.project}/${var.environment}/db/username"
+  type  = "String"
+  value = var.db_username
+}
+
+resource "aws_ssm_parameter" "db_master_secret_arn" {
+  name  = "/${var.project}/${var.environment}/db/master-secret-arn"
+  type  = "String"
+  value = aws_db_instance.mysql.master_user_secret[0].secret_arn
+}
+
+resource "aws_ssm_parameter" "redis_host" {
+  name  = "/${var.project}/${var.environment}/redis/host"
+  type  = "String"
+  value = aws_elasticache_replication_group.redis.primary_endpoint_address
+}
+
+resource "aws_ssm_parameter" "redis_port" {
+  name  = "/${var.project}/${var.environment}/redis/port"
+  type  = "String"
+  value = "6379"
+}
+
+resource "aws_ssm_parameter" "redis_password" {
+  name  = "/${var.project}/${var.environment}/redis/password"
+  type  = "SecureString"
+  value = random_password.redis_auth_token.result
+}
+
+data "aws_iam_policy_document" "ec2_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    effect  = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ec2" {
+  name               = "${local.name_prefix}-ec2-role"
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
+}
+
+resource "aws_iam_instance_profile" "ec2" {
+  name = "${local.name_prefix}-ec2-profile"
+  role = aws_iam_role.ec2.name
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_ssm" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_cloudwatch_agent" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
+resource "aws_iam_role_policy" "ec2_permissions" {
+  name = "${local.name_prefix}-ec2-permissions"
+  role = aws_iam_role.ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EcrImagePull"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer"
+        ]
+        Resource = aws_ecr_repository.backend.arn
+      },
+      {
+        Sid      = "EcrAuthorization"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Sid    = "ReadRuntimeParameters"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project}/${var.environment}/*"
+      },
+      {
+        Sid    = "ReadRdsManagedSecret"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = aws_db_instance.mysql.master_user_secret[0].secret_arn
+      }
+    ]
+  })
+}
+
+resource "aws_instance" "backend" {
+  ami                         = data.aws_ami.amazon_linux_2023.id
+  instance_type               = "t3.small"
+  subnet_id                   = aws_subnet.private_app_a.id
+  vpc_security_group_ids      = [aws_security_group.ec2.id]
+  associate_public_ip_address = false
+  iam_instance_profile        = aws_iam_instance_profile.ec2.name
+  user_data                   = templatefile("${path.module}/user-data.sh.tftpl", {})
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
+  root_block_device {
+    volume_size           = 20
+    volume_type           = "gp3"
+    encrypted             = true
+    delete_on_termination = true
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-backend"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.ec2_ssm,
+    aws_iam_role_policy_attachment.ec2_cloudwatch_agent,
+    aws_iam_role_policy.ec2_permissions
+  ]
+}
+
+resource "aws_lb" "backend" {
+  name               = "${local.name_prefix}-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+
+  enable_deletion_protection = false
+
+  tags = {
+    Name = "${local.name_prefix}-alb"
+  }
+}
+
+resource "aws_lb_target_group" "backend" {
+  name        = "${local.name_prefix}-tg"
+  port        = 80
+  protocol    = "HTTP"
+  target_type = "instance"
+  vpc_id      = aws_vpc.main.id
+
+  health_check {
+    enabled             = true
+    path                = "/actuator/health"
+    matcher             = "200"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-tg"
+  }
+}
+
+resource "aws_lb_target_group_attachment" "backend_ec2" {
+  target_group_arn = aws_lb_target_group.backend.arn
+  target_id        = aws_instance.backend.id
+  port             = 80
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.backend.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.backend.arn
+  port              = 443
+  protocol          = "HTTPS"
+  certificate_arn   = aws_acm_certificate_validation.api.certificate_arn
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+}
+
+resource "aws_route53_record" "api" {
+  zone_id = data.aws_route53_zone.primary.zone_id
+  name    = var.api_domain
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.backend.dns_name
+    zone_id                = aws_lb.backend.zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_budgets_budget" "monthly" {
+  name         = "${local.name_prefix}-monthly-budget"
+  budget_type  = "COST"
+  limit_amount = var.budget_limit_usd
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.budget_email]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = [var.budget_email]
+  }
 }

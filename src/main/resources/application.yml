@@ -17,6 +17,8 @@
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
 
 redisson:
   address: ${REDISSON_ADDRESS:redis://${spring.data.redis.host}:${spring.data.redis.port}}

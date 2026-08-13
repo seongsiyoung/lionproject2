@@ -34,6 +34,22 @@ variable "files_domain" {
   default     = "files.approach.shop"
 }
 
+variable "lesson_file_cloudfront_public_key_encoded" {
+  type        = string
+  description = "PEM encoded CloudFront public key for lesson file signed URLs. The matching private key must be stored outside Terraform."
+  sensitive   = false
+}
+
+variable "lesson_file_cors_allowed_origins" {
+  type        = list(string)
+  description = "Allowed browser origins for direct S3 lesson file uploads."
+  default = [
+    "https://approach.shop",
+    "https://www.approach.shop",
+    "http://localhost:5173"
+  ]
+}
+
 variable "github_repository" {
   type        = string
   description = "GitHub repository allowed to assume deployment roles, formatted as owner/repo."

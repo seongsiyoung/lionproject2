@@ -98,6 +98,36 @@ output "redis_endpoint" {
   value       = aws_elasticache_replication_group.redis.primary_endpoint_address
 }
 
+output "lesson_file_bucket" {
+  description = "Private S3 bucket name for lesson files."
+  value       = aws_s3_bucket.lesson_files.bucket
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID for lesson file delivery."
+  value       = aws_cloudfront_distribution.lesson_files.id
+}
+
+output "cloudfront_domain_name" {
+  description = "CloudFront distribution domain name for lesson file delivery."
+  value       = aws_cloudfront_distribution.lesson_files.domain_name
+}
+
+output "files_domain_name" {
+  description = "Route 53 alias record for lesson file delivery."
+  value       = aws_route53_record.files.fqdn
+}
+
+output "cloudfront_public_key_id" {
+  description = "CloudFront public key ID used as the application key pair ID."
+  value       = aws_cloudfront_public_key.lesson_files.id
+}
+
+output "cloudfront_key_group_id" {
+  description = "CloudFront key group ID trusted by the lesson file distribution."
+  value       = aws_cloudfront_key_group.lesson_files.id
+}
+
 output "cloudwatch_log_groups" {
   description = "CloudWatch log groups created for application, Nginx, and deployment logs."
   value = [
@@ -118,5 +148,8 @@ output "runtime_parameter_names" {
     redis_host           = aws_ssm_parameter.redis_host.name
     redis_port           = aws_ssm_parameter.redis_port.name
     redis_password       = aws_ssm_parameter.redis_password.name
+    lesson_file_bucket   = aws_ssm_parameter.lesson_file_s3_bucket.name
+    cloudfront_domain    = aws_ssm_parameter.lesson_file_cloudfront_domain.name
+    cloudfront_key_id    = aws_ssm_parameter.lesson_file_cloudfront_key_pair_id.name
   }
 }

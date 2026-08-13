@@ -2,6 +2,14 @@ domain_name  = "approach.shop"
 api_domain   = "api.approach.shop"
 files_domain = "files.approach.shop"
 
+# Generate a key pair outside Terraform and paste only the public key here.
+# Store the matching private key later in SSM SecureString.
+# lesson_file_cloudfront_public_key_encoded = <<EOT
+# -----BEGIN PUBLIC KEY-----
+# ...
+# -----END PUBLIC KEY-----
+# EOT
+
 github_repository = "OWNER/REPOSITORY"
 budget_email      = "you@example.com"
 budget_limit_usd  = "10"

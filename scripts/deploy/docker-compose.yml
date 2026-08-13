@@ -1,0 +1,39 @@
+name: devsolve
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: devsolve-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - /opt/devsolve/deploy/nginx:/etc/nginx/conf.d:ro
+    restart: unless-stopped
+    networks:
+      - devsolve
+
+  app-blue:
+    image: ${APP_IMAGE:?APP_IMAGE is required}
+    container_name: devsolve-app-blue
+    env_file:
+      - /opt/devsolve/env/app.env
+    volumes:
+      - /opt/devsolve/env/cloudfront-private-key.pem:/opt/devsolve/env/cloudfront-private-key.pem:ro
+    restart: unless-stopped
+    networks:
+      - devsolve
+
+  app-green:
+    image: ${APP_IMAGE:?APP_IMAGE is required}
+    container_name: devsolve-app-green
+    env_file:
+      - /opt/devsolve/env/app.env
+    volumes:
+      - /opt/devsolve/env/cloudfront-private-key.pem:/opt/devsolve/env/cloudfront-private-key.pem:ro
+    restart: unless-stopped
+    networks:
+      - devsolve
+
+networks:
+  devsolve:
+    name: devsolve-network

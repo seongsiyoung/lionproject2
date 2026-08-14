@@ -17,3 +17,8 @@ output "route53_name_servers" {
   description = "Name servers assigned to the Route 53 hosted zone. Configure these at the domain registrar before ACM validation."
   value       = aws_route53_zone.primary.name_servers
 }
+
+output "github_infra_role_arn" {
+  description = "IAM role ARN for GitHub Actions infrastructure workflow."
+  value       = aws_iam_role.github_infra.arn
+}

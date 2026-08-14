@@ -63,4 +63,4 @@ EOF
 
 get_secret /devsolve/dev/lesson-file/cloudfront-private-key > "$PRIVATE_KEY_FILE"
 chmod 600 "$ENV_FILE"
-chmod 644 "$PRIVATE_KEY_FILE"
+chmod 600 "$PRIVATE_KEY_FILE"

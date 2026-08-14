@@ -36,6 +36,10 @@ data "aws_availability_zones" "available" {
 
 data "aws_caller_identity" "current" {}
 
+data "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
+}
+
 data "aws_route53_zone" "primary" {
   name         = var.domain_name
   private_zone = false
@@ -342,20 +346,14 @@ resource "aws_vpc_security_group_ingress_rule" "redis_from_ec2" {
   referenced_security_group_id = aws_security_group.ec2.id
 }
 
-resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
-}
-
-data "aws_iam_policy_document" "github_assume_role" {
+data "aws_iam_policy_document" "github_deploy_assume_role" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     effect  = "Allow"
 
     principals {
       type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.github.arn]
+      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
     }
 
     condition {
@@ -372,47 +370,9 @@ data "aws_iam_policy_document" "github_assume_role" {
   }
 }
 
-resource "aws_iam_role" "github_infra" {
-  name               = "${local.name_prefix}-github-infra-role"
-  assume_role_policy = data.aws_iam_policy_document.github_assume_role.json
-}
-
 resource "aws_iam_role" "github_deploy" {
   name               = "${local.name_prefix}-github-deploy-role"
-  assume_role_policy = data.aws_iam_policy_document.github_assume_role.json
-}
-
-resource "aws_iam_role_policy" "github_infra_policy" {
-  name = "${local.name_prefix}-github-infra-policy"
-  role = aws_iam_role.github_infra.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "acm:*",
-          "application-autoscaling:*",
-          "autoscaling:*",
-          "budgets:*",
-          "cloudfront:*",
-          "cloudwatch:*",
-          "ec2:*",
-          "ecr:*",
-          "elasticache:*",
-          "elasticloadbalancing:*",
-          "iam:*",
-          "logs:*",
-          "rds:*",
-          "route53:*",
-          "s3:*",
-          "ssm:*"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
+  assume_role_policy = data.aws_iam_policy_document.github_deploy_assume_role.json
 }
 
 resource "aws_iam_role_policy" "github_deploy_policy" {

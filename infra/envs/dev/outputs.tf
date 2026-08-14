@@ -38,11 +38,6 @@ output "redis_security_group_id" {
   value       = aws_security_group.redis.id
 }
 
-output "github_infra_role_arn" {
-  description = "IAM role ARN for GitHub Actions infrastructure workflow."
-  value       = aws_iam_role.github_infra.arn
-}
-
 output "github_deploy_role_arn" {
   description = "IAM role ARN for GitHub Actions app deployment workflow."
   value       = aws_iam_role.github_deploy.arn

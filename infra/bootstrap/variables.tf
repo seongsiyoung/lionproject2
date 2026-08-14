@@ -27,3 +27,14 @@ variable "domain_name" {
   description = "Root domain name for the shared Route 53 hosted zone."
   default     = "approach.shop"
 }
+
+variable "github_repository" {
+  type        = string
+  description = "GitHub repository allowed to assume the bootstrap-created infrastructure role, formatted as owner/repo."
+}
+
+variable "github_oidc_subjects" {
+  type        = list(string)
+  description = "Allowed GitHub OIDC subject claims. Defaults to the repository's environment subject when empty."
+  default     = []
+}

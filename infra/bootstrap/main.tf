@@ -128,6 +128,7 @@ resource "aws_iam_role_policy" "github_infra" {
           "elasticache:*",
           "elasticloadbalancing:*",
           "iam:*",
+          "kms:*",
           "logs:*",
           "rds:*",
           "route53:*",

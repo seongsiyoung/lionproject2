@@ -1,0 +1,84 @@
+name: Terraform Infra
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Terraform action to run
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
+      environment:
+        description: GitHub Environment and Terraform environment
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    defaults:
+      run:
+        working-directory: infra/envs/dev
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_INFRA_ROLE_ARN: ${{ vars.AWS_INFRA_ROLE_ARN }}
+      BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
+      PROJECT: ${{ vars.PROJECT || 'devsolve' }}
+      ROUTE53_ZONE_ID: ${{ vars.ROUTE53_ZONE_ID }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      TF_VAR_project: ${{ vars.PROJECT || 'devsolve' }}
+      TF_VAR_environment: ${{ inputs.environment }}
+      TF_VAR_route53_zone_id: ${{ vars.ROUTE53_ZONE_ID }}
+      TF_VAR_github_repository: ${{ github.repository }}
+      TF_VAR_budget_email: ${{ vars.BUDGET_EMAIL }}
+      TF_VAR_lesson_file_cloudfront_public_key_encoded: ${{ secrets.CLOUDFRONT_PUBLIC_KEY_PEM }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Check required GitHub configuration
+        run: |
+          test -n "${AWS_INFRA_ROLE_ARN:-}" || { echo "Missing GitHub variable: AWS_INFRA_ROLE_ARN"; exit 1; }
+          test -n "${BUDGET_EMAIL:-}" || { echo "Missing GitHub variable: BUDGET_EMAIL"; exit 1; }
+          test -n "${ROUTE53_ZONE_ID:-}" || { echo "Missing GitHub variable: ROUTE53_ZONE_ID"; exit 1; }
+          test -n "${TF_VAR_lesson_file_cloudfront_public_key_encoded:-}" || { echo "Missing GitHub secret: CLOUDFRONT_PUBLIC_KEY_PEM"; exit 1; }
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_INFRA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: ${{ env.PROJECT }}-${{ inputs.environment }}-terraform
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
+
+      - name: Initialize Terraform
+        run: terraform init -input=false
+
+      - name: Validate Terraform
+        run: terraform validate
+
+      - name: Plan Terraform changes
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Apply Terraform changes
+        if: ${{ inputs.action == 'apply' }}
+        run: terraform apply -input=false -auto-approve tfplan

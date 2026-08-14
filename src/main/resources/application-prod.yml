@@ -17,9 +17,25 @@ spring:
       ddl-auto: validate
     show-sql: false
 
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:true}
+
   batch:
     jdbc:
       initialize-schema: never
+
+redisson:
+  address: ${REDISSON_ADDRESS:rediss://${spring.data.redis.host}:${spring.data.redis.port}}
 
 portone:
   store-id: ${PORTONE_STORE_ID}
@@ -66,5 +82,17 @@ management:
 notification:
   discord:
     webhook-url: ${DISCORD_WEBHOOK_URL}
+  slack:
+    webhook-url: ${SLACK_WEBHOOK_URL:}
 
-
+lesson-file:
+  s3:
+    bucket: ${LESSON_FILE_S3_BUCKET}
+    region: ${AWS_REGION:ap-northeast-2}
+    pending-prefix: pending
+    validated-prefix: validated
+    failed-prefix: failed
+  cloudfront:
+    domain: ${LESSON_FILE_CLOUDFRONT_DOMAIN}
+    key-pair-id: ${LESSON_FILE_CLOUDFRONT_KEY_PAIR_ID}
+    private-key-path: ${LESSON_FILE_CLOUDFRONT_PRIVATE_KEY_PATH}

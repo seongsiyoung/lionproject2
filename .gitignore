@@ -50,6 +50,15 @@ front/
 *.pem
 *.key
 
+### Terraform ###
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+
 ### Codex local hook state ###
 .codex-state/
 

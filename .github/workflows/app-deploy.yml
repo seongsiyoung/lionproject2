@@ -1,0 +1,196 @@
+name: App Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      PROJECT: ${{ vars.PROJECT || 'devsolve' }}
+      ENVIRONMENT: ${{ vars.ENVIRONMENT || 'dev' }}
+      AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+      ECR_REPOSITORY_URL: ${{ vars.ECR_REPOSITORY_URL }}
+      BACKEND_INSTANCE_ID: ${{ vars.BACKEND_INSTANCE_ID }}
+      DEPLOY_TIMEOUT_SECONDS: ${{ vars.DEPLOY_TIMEOUT_SECONDS || '900' }}
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - name: Check required GitHub configuration
+        run: |
+          test -n "${AWS_DEPLOY_ROLE_ARN:-}" || { echo "Missing GitHub variable: AWS_DEPLOY_ROLE_ARN"; exit 1; }
+          test -n "${ECR_REPOSITORY_URL:-}" || { echo "Missing GitHub variable: ECR_REPOSITORY_URL"; exit 1; }
+          test -n "${BACKEND_INSTANCE_ID:-}" || { echo "Missing GitHub variable: BACKEND_INSTANCE_ID"; exit 1; }
+          [[ "$DEPLOY_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || { echo "DEPLOY_TIMEOUT_SECONDS must be a positive integer"; exit 1; }
+
+          if ! [[ "$ECR_REPOSITORY_URL" =~ ^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-z0-9._/-]+$ ]]; then
+            echo "ECR_REPOSITORY_URL must be an Amazon ECR repository URL"
+            exit 1
+          fi
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Test and build application
+        run: ./gradlew test bootJar
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: ${{ env.PROJECT }}-${{ env.ENVIRONMENT }}-app-deploy
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        run: |
+          set -euo pipefail
+
+          IMAGE_TAG="${DEPLOY_SHA}"
+          IMAGE_URI="${ECR_REPOSITORY_URL}:${IMAGE_TAG}"
+          LATEST_URI="${ECR_REPOSITORY_URL}:latest"
+
+          docker build -t "$IMAGE_URI" -t "$LATEST_URI" .
+          docker push "$IMAGE_URI"
+          docker push "$LATEST_URI"
+
+          {
+            echo "IMAGE_URI=$IMAGE_URI"
+            echo "IMAGE_TAG=$IMAGE_TAG"
+          } >> "$GITHUB_ENV"
+
+      - name: Package deployment scripts
+        run: |
+          set -euo pipefail
+
+          tar -czf /tmp/devsolve-deploy.tar.gz -C scripts deploy
+          base64 -w 0 /tmp/devsolve-deploy.tar.gz > "$RUNNER_TEMP/devsolve-deploy.b64"
+          echo "DEPLOY_BUNDLE_B64_FILE=$RUNNER_TEMP/devsolve-deploy.b64" >> "$GITHUB_ENV"
+
+      - name: Send deployment command through SSM
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json
+          import os
+          import shlex
+
+          with open(os.environ["DEPLOY_BUNDLE_B64_FILE"], "r", encoding="utf-8") as file:
+              bundle_b64 = file.read().strip()
+          image_uri = os.environ["IMAGE_URI"]
+          aws_region = os.environ["AWS_REGION"]
+          project = os.environ["PROJECT"]
+          environment = os.environ["ENVIRONMENT"]
+
+          commands = [
+              "set -euo pipefail",
+              f"export AWS_REGION={shlex.quote(aws_region)} AWS_DEFAULT_REGION={shlex.quote(aws_region)}",
+              f"export PROJECT={shlex.quote(project)} ENVIRONMENT={shlex.quote(environment)}",
+              "mkdir -p /tmp/devsolve-deploy /opt/devsolve/deploy/nginx /opt/devsolve/bin",
+              f"printf '%s' '{bundle_b64}' | base64 -d > /tmp/devsolve-deploy.tar.gz",
+              "tar -xzf /tmp/devsolve-deploy.tar.gz -C /tmp/devsolve-deploy",
+              "cp /tmp/devsolve-deploy/deploy/docker-compose.yml /opt/devsolve/deploy/docker-compose.yml",
+              "cp /tmp/devsolve-deploy/deploy/nginx/devsolve.conf /opt/devsolve/deploy/nginx/devsolve.conf",
+              "cp /tmp/devsolve-deploy/deploy/nginx/upstream-active.conf /opt/devsolve/deploy/nginx/upstream-active.conf",
+              "cp /tmp/devsolve-deploy/deploy/render-env.sh /opt/devsolve/bin/render-env.sh",
+              "cp /tmp/devsolve-deploy/deploy/switch-nginx-upstream.sh /opt/devsolve/bin/switch-nginx-upstream.sh",
+              "cp /tmp/devsolve-deploy/deploy/notify-discord.sh /opt/devsolve/bin/notify-discord.sh",
+              "cp /tmp/devsolve-deploy/deploy/deploy-blue-green.sh /opt/devsolve/bin/deploy-blue-green.sh",
+              "chmod +x /opt/devsolve/bin/*.sh",
+              f"/opt/devsolve/bin/deploy-blue-green.sh {shlex.quote(image_uri)}",
+          ]
+
+          with open("/tmp/ssm-parameters.json", "w", encoding="utf-8") as file:
+              json.dump({"commands": commands}, file)
+          PY
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$BACKEND_INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy ${IMAGE_URI}" \
+            --parameters file:///tmp/ssm-parameters.json \
+            --cloud-watch-output-config "CloudWatchOutputEnabled=true,CloudWatchLogGroupName=/${PROJECT}/${ENVIRONMENT}/deploy" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM_COMMAND_ID=$COMMAND_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for SSM deployment result
+        run: |
+          set -euo pipefail
+
+          POLL_INTERVAL_SECONDS=10
+          DEADLINE=$((SECONDS + DEPLOY_TIMEOUT_SECONDS))
+
+          while true; do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$SSM_COMMAND_ID" \
+              --instance-id "$BACKEND_INSTANCE_ID" \
+              --query "Status" \
+              --output text 2>/tmp/ssm-get-command-error.log || true)
+
+            case "$STATUS" in
+              Success)
+                RESULT=0
+                break
+                ;;
+              Failed|Cancelled|TimedOut|Cancelling)
+                RESULT=1
+                break
+                ;;
+              Pending|InProgress|Delayed|"")
+                if [ "$SECONDS" -ge "$DEADLINE" ]; then
+                  echo "SSM command did not finish within ${DEPLOY_TIMEOUT_SECONDS} seconds"
+                  RESULT=1
+                  break
+                fi
+                sleep "$POLL_INTERVAL_SECONDS"
+                ;;
+              *)
+                echo "Unknown SSM command status: $STATUS"
+                RESULT=1
+                break
+                ;;
+            esac
+          done
+
+          aws ssm get-command-invocation \
+            --command-id "$SSM_COMMAND_ID" \
+            --instance-id "$BACKEND_INSTANCE_ID" \
+            --query '{Status:Status,StandardOutputContent:StandardOutputContent,StandardErrorContent:StandardErrorContent}' \
+            --output json || {
+              echo "Could not fetch final SSM command invocation output"
+              cat /tmp/ssm-get-command-error.log || true
+            }
+
+          exit "$RESULT"

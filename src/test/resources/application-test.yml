@@ -29,3 +29,9 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     com.example.lionproject2backend: DEBUG
+
+notification:
+  discord:
+    webhook-url: http://localhost/test-discord-webhook
+  slack:
+    webhook-url: http://localhost/test-slack-webhook

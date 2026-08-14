@@ -71,8 +71,9 @@ locals {
   az_a        = data.aws_availability_zones.available.names[0]
   az_b        = data.aws_availability_zones.available.names[1]
 
-  lesson_file_bucket_name = lower("${local.name_prefix}-${data.aws_caller_identity.current.account_id}-lesson-files")
-  lesson_file_origin_id   = "${local.name_prefix}-lesson-files-s3"
+  lesson_file_bucket_name     = lower("${local.name_prefix}-${data.aws_caller_identity.current.account_id}-lesson-files")
+  lesson_file_origin_id       = "${local.name_prefix}-lesson-files-s3"
+  lesson_file_public_key_hash = substr(sha1(var.lesson_file_cloudfront_public_key_encoded), 0, 8)
 
   github_sub_conditions = length(var.github_oidc_subjects) > 0 ? var.github_oidc_subjects : ["repo:${var.github_repository}:environment:${var.environment}"]
 }
@@ -912,9 +913,13 @@ resource "aws_cloudfront_origin_access_control" "lesson_files" {
 }
 
 resource "aws_cloudfront_public_key" "lesson_files" {
-  name        = "${local.name_prefix}-lesson-files-public-key"
+  name        = "${local.name_prefix}-lesson-files-public-key-${local.lesson_file_public_key_hash}"
   comment     = "Public key for ${local.name_prefix} lesson file signed URLs"
   encoded_key = var.lesson_file_cloudfront_public_key_encoded
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_cloudfront_key_group" "lesson_files" {
@@ -929,7 +934,7 @@ resource "aws_cloudfront_distribution" "lesson_files" {
   aliases             = [var.files_domain]
   price_class         = "PriceClass_200"
   is_ipv6_enabled     = true
-  wait_for_deployment = false
+  wait_for_deployment = true
 
   origin {
     domain_name              = aws_s3_bucket.lesson_files.bucket_regional_domain_name

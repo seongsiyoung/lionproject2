@@ -9,6 +9,13 @@ services:
     volumes:
       - /opt/devsolve/deploy/nginx:/etc/nginx/conf.d:ro
     restart: unless-stopped
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:-ap-northeast-2}
+        awslogs-group: /${PROJECT:-devsolve}/${ENVIRONMENT:-dev}/nginx/access
+        awslogs-stream: nginx
+        awslogs-create-group: "false"
     networks:
       - devsolve
 
@@ -20,6 +27,13 @@ services:
     volumes:
       - /opt/devsolve/env/cloudfront-private-key.pem:/opt/devsolve/env/cloudfront-private-key.pem:ro
     restart: unless-stopped
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:-ap-northeast-2}
+        awslogs-group: /${PROJECT:-devsolve}/${ENVIRONMENT:-dev}/app
+        awslogs-stream: app-blue
+        awslogs-create-group: "false"
     networks:
       - devsolve
 
@@ -31,6 +45,13 @@ services:
     volumes:
       - /opt/devsolve/env/cloudfront-private-key.pem:/opt/devsolve/env/cloudfront-private-key.pem:ro
     restart: unless-stopped
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:-ap-northeast-2}
+        awslogs-group: /${PROJECT:-devsolve}/${ENVIRONMENT:-dev}/app
+        awslogs-stream: app-green
+        awslogs-create-group: "false"
     networks:
       - devsolve
 

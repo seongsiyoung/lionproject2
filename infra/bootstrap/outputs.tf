@@ -22,3 +22,8 @@ output "github_infra_role_arn" {
   description = "IAM role ARN for GitHub Actions infrastructure workflow."
   value       = aws_iam_role.github_infra.arn
 }
+
+output "github_oidc_provider_arn" {
+  description = "GitHub Actions OIDC provider ARN used by the bootstrap stack."
+  value       = local.github_oidc_provider_arn
+}

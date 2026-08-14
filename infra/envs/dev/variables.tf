@@ -22,6 +22,12 @@ variable "domain_name" {
   default     = "approach.shop"
 }
 
+variable "route53_zone_id" {
+  type        = string
+  description = "Route 53 hosted zone ID. When set, dev records are written to this exact zone instead of looking up by domain name."
+  default     = ""
+}
+
 variable "api_domain" {
   type        = string
   description = "API domain name for the ALB certificate."

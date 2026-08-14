@@ -5,6 +5,12 @@ IMAGE_URI="${1:?usage: deploy-blue-green.sh <image-uri>}"
 COMPOSE_FILE="/opt/devsolve/deploy/docker-compose.yml"
 CURRENT_COLOR_FILE="/opt/devsolve/current-color"
 LOCK_FILE="/opt/devsolve/deploy.lock"
+AWS_REGION="${AWS_REGION:-ap-northeast-2}"
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$AWS_REGION}"
+PROJECT="${PROJECT:-devsolve}"
+ENVIRONMENT="${ENVIRONMENT:-dev}"
+
+export AWS_REGION AWS_DEFAULT_REGION PROJECT ENVIRONMENT
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
@@ -63,7 +69,12 @@ docker compose -f "$COMPOSE_FILE" up -d "$NEXT_SERVICE" nginx
 for _ in $(seq 1 30); do
   if docker compose -f "$COMPOSE_FILE" exec -T nginx \
     wget -qO- "http://${NEXT_SERVICE}:8080/actuator/health" >/dev/null; then
-    /opt/devsolve/bin/switch-nginx-upstream.sh "$NEXT_COLOR"
+    if ! /opt/devsolve/bin/switch-nginx-upstream.sh "$NEXT_COLOR"; then
+      docker compose -f "$COMPOSE_FILE" stop "$NEXT_SERVICE" 2>/dev/null || true
+      docker compose -f "$COMPOSE_FILE" rm -f "$NEXT_SERVICE" 2>/dev/null || true
+      notify "deploy-failed" "Nginx upstream switch failed for ${IMAGE_URI}"
+      exit 1
+    fi
 
     if ! docker compose -f "$COMPOSE_FILE" exec -T nginx \
       wget -qO- "http://127.0.0.1/actuator/health" >/dev/null; then

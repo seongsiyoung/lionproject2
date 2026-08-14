@@ -2,6 +2,10 @@ domain_name  = "approach.shop"
 api_domain   = "api.approach.shop"
 files_domain = "files.approach.shop"
 
+# Prefer the exact hosted zone ID from infra/bootstrap output when available.
+# This avoids writing DNS records to the wrong zone if duplicate public zones exist.
+route53_zone_id = ""
+
 # Generate a key pair outside Terraform and paste only the public key here.
 # Store the matching private key later in SSM SecureString.
 # lesson_file_cloudfront_public_key_encoded = <<EOT

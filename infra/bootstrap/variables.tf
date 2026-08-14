@@ -38,3 +38,9 @@ variable "github_oidc_subjects" {
   description = "Allowed GitHub OIDC subject claims. Defaults to the repository's environment subject when empty."
   default     = []
 }
+
+variable "github_oidc_provider_arn" {
+  type        = string
+  description = "Existing GitHub OIDC provider ARN. Leave empty to create a new provider in this bootstrap stack."
+  default     = ""
+}

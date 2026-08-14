@@ -124,11 +124,10 @@ output "cloudfront_key_group_id" {
 }
 
 output "cloudwatch_log_groups" {
-  description = "CloudWatch log groups created for application, Nginx, and deployment logs."
+  description = "CloudWatch log groups created for application, Nginx container, and deployment logs."
   value = [
     aws_cloudwatch_log_group.app.name,
     aws_cloudwatch_log_group.nginx_access.name,
-    aws_cloudwatch_log_group.nginx_error.name,
     aws_cloudwatch_log_group.deploy.name
   ]
 }

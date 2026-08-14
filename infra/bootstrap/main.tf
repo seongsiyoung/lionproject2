@@ -22,8 +22,9 @@ provider "aws" {
 }
 
 locals {
-  name_prefix       = "${var.project}-${var.environment}"
-  state_bucket_name = coalesce(var.state_bucket_name, "${local.name_prefix}-${data.aws_caller_identity.current.account_id}-terraform-state")
+  name_prefix              = "${var.project}-${var.environment}"
+  state_bucket_name        = coalesce(var.state_bucket_name, "${local.name_prefix}-${data.aws_caller_identity.current.account_id}-terraform-state")
+  github_oidc_provider_arn = var.github_oidc_provider_arn != "" ? var.github_oidc_provider_arn : aws_iam_openid_connect_provider.github[0].arn
 
   github_sub_conditions = length(var.github_oidc_subjects) > 0 ? var.github_oidc_subjects : ["repo:${var.github_repository}:environment:${var.environment}"]
 }
@@ -70,6 +71,8 @@ resource "aws_route53_zone" "primary" {
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
+  count = var.github_oidc_provider_arn == "" ? 1 : 0
+
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
@@ -82,7 +85,7 @@ data "aws_iam_policy_document" "github_infra_assume_role" {
 
     principals {
       type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.github.arn]
+      identifiers = [local.github_oidc_provider_arn]
     }
 
     condition {

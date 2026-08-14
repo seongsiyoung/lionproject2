@@ -41,7 +41,8 @@ data "aws_iam_openid_connect_provider" "github" {
 }
 
 data "aws_route53_zone" "primary" {
-  name         = var.domain_name
+  zone_id      = var.route53_zone_id != "" ? var.route53_zone_id : null
+  name         = var.route53_zone_id == "" ? var.domain_name : null
   private_zone = false
 }
 
@@ -503,11 +504,6 @@ resource "aws_cloudwatch_log_group" "app" {
 
 resource "aws_cloudwatch_log_group" "nginx_access" {
   name              = "/${var.project}/${var.environment}/nginx/access"
-  retention_in_days = 3
-}
-
-resource "aws_cloudwatch_log_group" "nginx_error" {
-  name              = "/${var.project}/${var.environment}/nginx/error"
   retention_in_days = 3
 }
 

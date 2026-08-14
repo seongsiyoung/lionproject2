@@ -423,19 +423,42 @@ resource "aws_iam_role_policy" "github_deploy_policy" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "EcrImagePush"
         Effect = "Allow"
         Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:BatchGetImage",
           "ecr:CompleteLayerUpload",
           "ecr:DescribeImages",
-          "ecr:GetAuthorizationToken",
           "ecr:InitiateLayerUpload",
           "ecr:PutImage",
-          "ecr:UploadLayerPart",
-          "ssm:DescribeInstanceInformation",
-          "ssm:GetCommandInvocation",
+          "ecr:UploadLayerPart"
+        ]
+        Resource = aws_ecr_repository.backend.arn
+      },
+      {
+        Sid      = "EcrAuthorization"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Sid    = "SsmRunBackendDeployCommand"
+        Effect = "Allow"
+        Action = [
           "ssm:SendCommand"
+        ]
+        Resource = [
+          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.backend.id}",
+          "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript"
+        ]
+      },
+      {
+        Sid    = "SsmReadDeployCommandStatus"
+        Effect = "Allow"
+        Action = [
+          "ssm:DescribeInstanceInformation",
+          "ssm:GetCommandInvocation"
         ]
         Resource = "*"
       }

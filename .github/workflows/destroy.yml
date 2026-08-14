@@ -1,0 +1,75 @@
+name: Destroy AWS Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type destroy-devsolve-dev
+        required: true
+      environment:
+        description: GitHub Environment and Terraform environment
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    defaults:
+      run:
+        working-directory: infra/envs/dev
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_INFRA_ROLE_ARN: ${{ vars.AWS_INFRA_ROLE_ARN }}
+      BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      TF_VAR_github_repository: ${{ github.repository }}
+      TF_VAR_budget_email: ${{ vars.BUDGET_EMAIL }}
+      TF_VAR_lesson_file_cloudfront_public_key_encoded: ${{ secrets.CLOUDFRONT_PUBLIC_KEY_PEM }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Check confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "destroy-devsolve-dev" ]; then
+            echo "confirm input must be exactly: destroy-devsolve-dev"
+            exit 1
+          fi
+
+      - name: Check required GitHub configuration
+        run: |
+          test -n "${AWS_INFRA_ROLE_ARN:-}" || { echo "Missing GitHub variable: AWS_INFRA_ROLE_ARN"; exit 1; }
+          test -n "${BUDGET_EMAIL:-}" || { echo "Missing GitHub variable: BUDGET_EMAIL"; exit 1; }
+          test -n "${TF_VAR_lesson_file_cloudfront_public_key_encoded:-}" || { echo "Missing GitHub secret: CLOUDFRONT_PUBLIC_KEY_PEM"; exit 1; }
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_INFRA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: devsolve-${{ inputs.environment }}-destroy
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Initialize Terraform
+        run: terraform init -input=false
+
+      - name: Validate Terraform
+        run: terraform validate
+
+      - name: Destroy Terraform resources
+        run: terraform destroy -input=false -auto-approve

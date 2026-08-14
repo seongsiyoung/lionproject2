@@ -522,21 +522,22 @@ resource "aws_db_subnet_group" "backend" {
 }
 
 resource "aws_db_instance" "mysql" {
-  identifier                  = "${local.name_prefix}-mysql"
-  allocated_storage           = 20
-  db_name                     = var.db_name
-  engine                      = "mysql"
-  engine_version              = "8.4"
-  instance_class              = "db.t3.micro"
-  username                    = var.db_username
-  manage_master_user_password = true
-  db_subnet_group_name        = aws_db_subnet_group.backend.name
-  vpc_security_group_ids      = [aws_security_group.rds.id]
-  publicly_accessible         = false
-  skip_final_snapshot         = true
-  deletion_protection         = false
-  backup_retention_period     = 0
-  apply_immediately           = true
+  identifier                    = "${local.name_prefix}-mysql"
+  allocated_storage             = 20
+  db_name                       = var.db_name
+  engine                        = "mysql"
+  engine_version                = "8.4"
+  instance_class                = "db.t3.micro"
+  username                      = var.db_username
+  manage_master_user_password   = true
+  master_user_secret_kms_key_id = "alias/aws/secretsmanager"
+  db_subnet_group_name          = aws_db_subnet_group.backend.name
+  vpc_security_group_ids        = [aws_security_group.rds.id]
+  publicly_accessible           = false
+  skip_final_snapshot           = true
+  deletion_protection           = false
+  backup_retention_period       = 0
+  apply_immediately             = true
 
   tags = {
     Name = "${local.name_prefix}-mysql"

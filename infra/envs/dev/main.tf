@@ -919,6 +919,7 @@ resource "aws_cloudfront_public_key" "lesson_files" {
 
   lifecycle {
     create_before_destroy = true
+    ignore_changes        = [encoded_key]
   }
 }
 

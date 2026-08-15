@@ -3,7 +3,7 @@ set -euo pipefail
 
 COLOR="${1:?usage: switch-nginx-upstream.sh <blue|green>}"
 COMPOSE_FILE="/opt/devsolve/deploy/docker-compose.yml"
-NGINX_CONF="/opt/devsolve/deploy/nginx/upstream-active.conf"
+NGINX_CONF="/opt/devsolve/deploy/nginx/upstream-active.inc"
 BACKUP_CONF="$(mktemp)"
 HAS_BACKUP=false
 

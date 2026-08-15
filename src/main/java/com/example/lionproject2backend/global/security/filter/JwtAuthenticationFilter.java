@@ -25,8 +25,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String REFRESH_PATH = "/api/auth/refresh";
+
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return "POST".equals(request.getMethod())
+                && REFRESH_PATH.equals(request.getRequestURI());
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,

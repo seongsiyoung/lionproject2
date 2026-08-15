@@ -137,7 +137,7 @@ jobs:
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$BACKEND_INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --comment "Deploy ${IMAGE_URI}" \
+            --comment "Deploy ${DEPLOY_SHA:0:12}" \
             --parameters file:///tmp/ssm-parameters.json \
             --cloud-watch-output-config "CloudWatchOutputEnabled=true,CloudWatchLogGroupName=/${PROJECT}/${ENVIRONMENT}/deploy" \
             --query "Command.CommandId" \
